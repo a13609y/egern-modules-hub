@@ -1,5 +1,5 @@
 /**
- * ⛽ 全国实时油价小组件 v4.2.0（Egern 模块版 · 三尺寸视觉层级重排：油价 > 走势 > 调价说明）
+ * ⛽ 全国实时油价小组件 v4.4.0（Egern 模块版 · 中/大号按参考图重排：同色浅底卡 + 黑单价 + 折线面积图）
  * 现价源：http://m.qiyoujiage.com/（省份 / 城市页面）
  * 历史源：BesFuel（https://github.com/BensonLaur/BesFuel）已核实的发改委调价历史（元/升，真实节点）
  * 原作者：Egern 群友 tg://user?id=5122789128 · 二次修改 iBL3ND
@@ -17,7 +17,8 @@
  * - 「最近调价」的日期 / 方向 / 幅度来自站点页面 tishi 文本（真实）
  * - 「预计下轮窗口」= 最近调价日 + 10 个工作日（国内成品油调价规则推算，界面上标注「预计」）
  * - 走势图优先用 BesFuel 快照里逐期核实的官方调价历史（地区+油号一一对应，节点日期为价格执行/公告日，
- *   阶梯线表示两次调价之间价格不变，「不作调整」公告画成空心节点）；BesFuel 未收录的地区/油号不画曲线，
+ *   最多渲染最近 10 个真实节点，节点间用普通直线连接（只表示真实调价的价差趋势，不插值、不虚构调价），
+ *   「不作调整」公告画成空心节点，历史缺口处断线不连；BesFuel 未收录的地区/油号不画曲线，
  *   只用本脚本真实抓到的价格快照兜底并明确标注「本地快照」，绝不推算、不复用邻近地区数据。
  * - 下一轮信息分三级，绝不把「只有窗口日期」说成「下轮幅度」：
  *   1) 公告/预测级：只有 BesFuel 快照 nationalAdjustment 里带真实金额或明确公告标记时才作为主信息，
@@ -70,140 +71,119 @@ function b64(str) {
 }
 
 /**
- * 官方核价历史阶梯图（纯字符串 SVG，无外部资源）。
- * 语义对齐 BesFuel：横轴为真实「价格执行/公告日期」，纵轴为元/升，阶梯线（H/V）表示价格在两次调价之间保持不变；
- * 空心点为官方「不作调整」公告（价格未变），最新点实心并标注最新价；历史缺口处断线，不把缺失期间画成价格不变。
+ * 官方核价历史走势图（纯字符串 SVG，无外部资源，最多渲染最近 10 个真实节点）。
+ * 语义对齐 BesFuel：横轴 = 真实「价格执行/公告日期」，纵轴 = 元/升；相邻真实节点之间用普通直线连接，
+ * 直线只表示两次真实调价之间的价差趋势（不是逐日价格，也不插入虚构调价）；浅橙渐变面积仅作视觉填充；
+ * 历史缺口处断线（不跨缺口连线、不填充缺口），官方「不作调整」为空心节点；
+ * 末点用绿色大圆强调，不写价格标签（参考图无末点价签，避免压线/压节点）。
  * points: [{ v:number, d:"YYYY-MM-DD", kind:"price"|"unchanged" }]
- * opt: { w, h, gaps:number[](断线起点索引), labels:string[] }
+ * opt: { w, h, gaps:number[](断线起点索引，基于传入的完整序列), labels:string[](与 points 等长) }
  */
 function chartSVG(points, opt) {
   const W = Math.max(120, Math.round(opt.w));
-  const H = Math.max(40, Math.round(opt.h));
-  const n = points.length;
-  const vals = points.map((p) => p.v);
-  const padL = 25, padR = 7, padB = 12;
-  const padT = Math.max(9, Math.round(H * 0.14));
-  const iw = W - padL - padR, ih = H - padT - padB;
+  const H = Math.max(46, Math.round(opt.h));
+  const MAXP = 10;
+  const srcN = points.length;
+  const cut = srcN > MAXP ? srcN - MAXP : 0;   // 只截取最近 10 个真实节点，不改写时间/价格
+  const pts = cut ? points.slice(cut) : points;
+  const n = pts.length;
+  const vals = pts.map((p) => p.v);
+  const padL = Math.round(Math.min(30, Math.max(25, W * 0.12)));
+  const padR = 11, padT = 10, padB = 16;
+  const iw = Math.max(20, W - padL - padR);
+  const ih = Math.max(16, H - padT - padB);
+  const yBase = padT + ih;
   const dmin = Math.min(...vals), dmax = Math.max(...vals);
   const span = dmax - dmin;
-  let lo = dmin, hi = dmax;
-  if (span < 0.04) { lo = dmin - 0.05; hi = dmax + 0.05; } else { lo = dmin - span * 0.2; hi = dmax + span * 0.2; }
+  let lo, hi;
+  if (!(span > 0.02)) { lo = dmin - 0.05; hi = dmax + 0.05; }
+  else { lo = dmin - span * 0.22; hi = dmax + span * 0.22; }
   const X = (i) => (n === 1 ? padL + iw / 2 : padL + (iw * i) / (n - 1));
   const Y = (v) => padT + ih * (1 - (v - lo) / (hi - lo));
-  const line = "#2E9E6B", accent = "#FF9F0A", grid = "#8E8E93", txt = "#8E8E93";
-  const gaps = Array.isArray(opt.gaps) ? opt.gaps : [];
+  const LINE = "#FF9F0A", GREEN = "#34C759", GRID = "#8E8E93", TXT = "#8E8E93";
+  const gaps = (Array.isArray(opt.gaps) ? opt.gaps : []).map((i) => i - cut).filter((i) => i > 0 && i < n);
   let s = `<svg xmlns='http://www.w3.org/2000/svg' width='${W}' height='${H}' viewBox='0 0 ${W} ${H}'>`;
+  s += "<defs><linearGradient id='fillg' x1='0' y1='0' x2='0' y2='1'>" +
+    `<stop offset='0' stop-color='${LINE}' stop-opacity='0.34'/>` +
+    `<stop offset='0.7' stop-color='${LINE}' stop-opacity='0.11'/>` +
+    `<stop offset='1' stop-color='${LINE}' stop-opacity='0.02'/></linearGradient></defs>`;
 
-  // 网格 + Y 轴刻度（高图三条，矮图只留上下两条）
-  const ticks = H >= 60 ? [dmax, (dmax + dmin) / 2, dmin] : [dmax, dmin];
-  ticks.forEach((v, i) => {
-    const y = Y(v).toFixed(1);
-    if (i > 0) s += `<line x1='${padL}' y1='${y}' x2='${W - padR}' y2='${y}' stroke='${grid}' stroke-opacity='0.22' stroke-width='0.7' stroke-dasharray='2 3'/>`;
-    s += `<text x='${padL - 4}' y='${(+y + 2.6).toFixed(1)}' font-size='7' fill='${txt}' text-anchor='end'>${v.toFixed(2)}</text>`;
+  // Y 轴刻度：只刻真实价格（最大 / 中值 / 最小），不虚构数值；文字夹在画布内不切边
+  const ticks = (dmax - dmin) < 0.005 ? [dmax] : H >= 56 ? [dmax, (dmax + dmin) / 2, dmin] : [dmax, dmin];
+  ticks.forEach((v) => {
+    const y = +Y(v).toFixed(1);
+    if (y > padT + 0.5 && y < yBase - 0.5) {
+      s += `<line x1='${padL}' y1='${y}' x2='${W - padR}' y2='${y}' stroke='${GRID}' stroke-opacity='0.20' stroke-width='0.7' stroke-dasharray='2 3'/>`;
+    }
+    const ty = Math.min(yBase - 1, Math.max(padT + 6, y + 2.4)).toFixed(1);
+    s += `<text x='${padL - 4}' y='${ty}' font-size='7' fill='${TXT}' text-anchor='end'>${v.toFixed(2)}</text>`;
   });
-
-  // 最新价水平参考线（虚线）
-  const lastY = Y(vals[n - 1]).toFixed(1);
-  s += `<line x1='${padL}' y1='${lastY}' x2='${W - padR}' y2='${lastY}' stroke='${line}' stroke-opacity='0.35' stroke-width='0.7' stroke-dasharray='3 3'/>`;
-
-  // 阶梯线：水平段表示价格维持，垂直段表示调价生效；缺口处 M 重新起笔。
-  // 同时把每段折线记成轴对齐线段，供末尾价标避让（文字不能压在线上）。
-  const segs = [];
-  let d = "";
-  for (let i = 0; i < n; i++) {
-    const x = +X(i).toFixed(1), y = +Y(vals[i]).toFixed(1);
-    if (i === 0 || gaps.includes(i)) d += ` M${x.toFixed(1)} ${y.toFixed(1)}`;
-    else {
-      const px = +X(i - 1).toFixed(1), py = +Y(vals[i - 1]).toFixed(1);
-      segs.push({ x1: px, y1: py, x2: x, y2: py });
-      segs.push({ x1: x, y1: py, x2: x, y2: y });
-      d += ` H${x.toFixed(1)} V${y.toFixed(1)}`;
+  // 大图加淡淡竖网格（每个真实节点一条），小图省略以免显脏
+  if (H >= 90) {
+    for (let i = 0; i < n; i++) {
+      s += `<line x1='${X(i).toFixed(1)}' y1='${padT}' x2='${X(i).toFixed(1)}' y2='${yBase}' stroke='${GRID}' stroke-opacity='0.10' stroke-width='0.6'/>`;
     }
   }
-  s += `<path d='${d.trim()}' fill='none' stroke='${line}' stroke-width='${H >= 60 ? 2.1 : 1.8}' stroke-linejoin='round' stroke-linecap='round'/>`;
 
-  // 节点：普通实心，官方「不调整」空心，最新点用强调色（节点先画，价标最后画）
-  const dots = [];
+  // 缺口分段：每段是一串连续的真实节点，段与段之间不连线、不填充
+  const runs = [];
+  let cur = [];
   for (let i = 0; i < n; i++) {
-    const x = +X(i).toFixed(1), y = +Y(vals[i]).toFixed(1);
-    const isLast = i === n - 1;
-    const r = isLast ? 3.2 : 2.1;
-    dots.push({ x, y, r });
-    if (points[i].kind === "unchanged") {
-      s += `<circle cx='${x.toFixed(1)}' cy='${y.toFixed(1)}' r='${isLast ? 3.2 : 2.1}' fill='none' stroke='${isLast ? accent : line}' stroke-width='1.2'/>`;
+    const p = { x: +X(i).toFixed(1), y: +Y(vals[i]).toFixed(1) };
+    if (i === 0 || gaps.includes(i)) { if (cur.length) runs.push(cur); cur = [p]; }
+    else cur.push(p);
+  }
+  if (cur.length) runs.push(cur);
+
+  // 浅橙渐变面积：只在有 ≥2 个连续节点的段内封闭到基线
+  let fd = "";
+  for (const r of runs) {
+    if (r.length < 2) continue;
+    fd += `M${r[0].x.toFixed(1)} ${yBase.toFixed(1)} ` +
+      r.map((p) => `L${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join(" ") +
+      ` L${r[r.length - 1].x.toFixed(1)} ${yBase.toFixed(1)} Z `;
+  }
+  if (fd) s += `<path d='${fd.trim()}' fill='url(#fillg)' stroke='none'/>`;
+
+  // 普通折线（直线连接真实节点）；缺口处 M 重新起笔
+  let ld = "";
+  for (const r of runs) {
+    ld += `M${r[0].x.toFixed(1)} ${r[0].y.toFixed(1)} ` +
+      r.slice(1).map((p) => `L${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join(" ") + " ";
+  }
+  if (ld) s += `<path d='${ld.trim()}' fill='none' stroke='${LINE}' stroke-width='${H >= 90 ? 2.2 : 1.9}' stroke-linejoin='round' stroke-linecap='round'/>`;
+
+  // 节点圆点：普通实心橙、官方「不作调整」空心；末点最后画绿色大圆（强调，不写价签）
+  const rBase = H >= 90 ? 3 : 2.3;
+  for (let i = 0; i < n - 1; i++) {
+    const x = X(i).toFixed(1), y = Y(vals[i]).toFixed(1);
+    if (pts[i].kind === "unchanged") s += `<circle cx='${x}' cy='${y}' r='${rBase}' fill='none' stroke='${LINE}' stroke-width='1.2'/>`;
+    else s += `<circle cx='${x}' cy='${y}' r='${rBase}' fill='${LINE}'/>`;
+  }
+  const lx = X(n - 1).toFixed(1), ly = Y(vals[n - 1]).toFixed(1);
+  const rLast = H >= 90 ? 5 : 4.2;
+  if (pts[n - 1].kind === "unchanged") s += `<circle cx='${lx}' cy='${ly}' r='${rLast}' fill='none' stroke='${GREEN}' stroke-width='2'/>`;
+  else s += `<circle cx='${lx}' cy='${ly}' r='${rLast}' fill='${GREEN}'/>`;
+
+  // 横轴：首 / 中 / 尾真实日期（M/D），先量宽再决定是否画中间标签，保证不切边、不互相遮挡
+  if (opt.labels && opt.labels.length === srcN) {
+    const lfs = 7;
+    const lw = (t) => String(t).length * lfs * 0.58;
+    const first = opt.labels[cut], lastL = opt.labels[srcN - 1];
+    if (n === 1) {
+      s += `<text x='${(padL + (W - padR)) / 2}' y='${H - 3}' font-size='${lfs}' fill='${TXT}' text-anchor='middle'>${lastL}</text>`;
     } else {
-      s += `<circle cx='${x.toFixed(1)}' cy='${y.toFixed(1)}' r='${isLast ? 3.2 : 2}' fill='${isLast ? accent : line}'/>`;
+      s += `<text x='${padL}' y='${H - 3}' font-size='${lfs}' fill='${TXT}' text-anchor='start'>${first}</text>`;
+      s += `<text x='${W - padR}' y='${H - 3}' font-size='${lfs}' fill='${TXT}' text-anchor='end'>${lastL}</text>`;
+    }
+    if (n >= 4) {
+      const mt = opt.labels[cut + Math.floor((n - 1) / 2)];
+      const mx = (padL + (W - padR)) / 2;
+      if (mx - lw(mt) / 2 > padL + lw(first) + 3 && mx + lw(mt) / 2 < W - padR - lw(lastL) - 3) {
+        s += `<text x='${mx.toFixed(1)}' y='${H - 3}' font-size='${lfs}' fill='${TXT}' text-anchor='middle'>${mt}</text>`;
+      }
     }
   }
-
-  // ── 末点价标：最后绘制（置顶），候选位逐个试排，避开折线段 / 节点 / 坐标轴文字，
-  //    并夹在画布内（靠右自动左移，上下越界自动贴边），保证曲线不穿字、数字不遮不出界。
-  const lastV = vals[n - 1];
-  const lab = lastV.toFixed(2);
-  const labFs = H >= 60 ? 9.5 : 8.5;
-  const labW = lab.length * labFs * 0.58;        // 数字字宽保守估计
-  const labH = labFs;
-  const lx = +X(n - 1).toFixed(1), ly = +Y(lastV).toFixed(1);
-  const labBox = (x, y, a) => {
-    const x1 = a === "middle" ? x - labW / 2 : a === "end" ? x - labW : x;
-    const x2 = a === "middle" ? x + labW / 2 : a === "end" ? x : x + labW;
-    return { x1, x2, y1: y - labH * 0.78, y2: y + labH * 0.22 };
-  };
-  // 横轴首尾日期文字占位（避免价标压日期）
-  const reserved = [];
-  if (opt.labels && opt.labels.length === n) {
-    reserved.push({ x1: padL, x2: padL + 26, y1: H - 9, y2: H - 1 });
-    if (n > 1) reserved.push({ x1: W - padR - 26, x2: W - padR, y1: H - 9, y2: H - 1 });
-  }
-  const clashOf = (b) => {
-    let c = 0;
-    if (b.x1 < padL + 0.5 || b.x2 > W - 1.5 || b.y1 < 1 || b.y2 > H - padB + 2) c += 3;
-    for (const g of segs) {
-      const gx1 = Math.min(g.x1, g.x2), gx2 = Math.max(g.x1, g.x2);
-      const gy1 = Math.min(g.y1, g.y2), gy2 = Math.max(g.y1, g.y2);
-      if (b.x1 < gx2 + 1.2 && b.x2 > gx1 - 1.2 && b.y1 < gy2 + 1.2 && b.y2 > gy1 - 1.2) c += 2;
-    }
-    for (const p of dots) {
-      if (b.x1 < p.x + p.r + 1 && b.x2 > p.x - p.r - 1 && b.y1 < p.y + p.r + 1 && b.y2 > p.y - p.r - 1) c += 2;
-    }
-    for (const rv of reserved) {
-      if (b.x1 < rv.x2 && b.x2 > rv.x1 && b.y1 < rv.y2 && b.y2 > rv.y1) c += 2;
-    }
-    return c;
-  };
-  const dyUp = -(labH * 0.55 + 2.5), dyDn = labH * 0.95 + 3;
-  const cands = [
-    { dx: 0, dy: dyUp, a: "middle" }, { dx: 0, dy: dyDn, a: "middle" },
-    { dx: -4, dy: dyUp, a: "end" }, { dx: -4, dy: dyDn, a: "end" },
-    { dx: 4, dy: dyUp, a: "start" }, { dx: 4, dy: dyDn, a: "start" },
-    { dx: -2, dy: dyUp - labH - 2, a: "end" }, { dx: -2, dy: dyDn + labH + 2, a: "end" },
-  ];
-  let placed = null, bestClash = Infinity;
-  for (const c of cands) {
-    let x = lx + c.dx, y = ly + c.dy;
-    let b = labBox(x, y, c.a);
-    if (b.x1 < padL + 1) { x += padL + 1 - b.x1; b = labBox(x, y, c.a); }
-    if (b.x2 > W - 1.5) { x -= b.x2 - (W - 1.5); b = labBox(x, y, c.a); }
-    if (b.y1 < 1) { y += 1 - b.y1; b = labBox(x, y, c.a); }
-    if (b.y2 > H - padB + 2) { y -= b.y2 - (H - padB + 2); b = labBox(x, y, c.a); }
-    const cl = clashOf(b);
-    if (cl < bestClash) { bestClash = cl; placed = { x, y, a: c.a, b }; }
-    if (cl === 0) break;
-  }
-  if (!placed) placed = { x: lx, y: ly + dyUp, a: "middle", b: labBox(lx, ly + dyUp, "middle") };
-  const boxAttr = `${placed.b.x1.toFixed(1)} ${placed.b.y1.toFixed(1)} ${placed.b.x2.toFixed(1)} ${placed.b.y2.toFixed(1)}`;
-  // 实在避不开（极窄图）时给价标加一层两主题都成立的中性半透明底，保证数字可读
-  if (bestClash > 0) {
-    s += `<rect x='${(placed.b.x1 - 1).toFixed(1)}' y='${(placed.b.y1 - 0.5).toFixed(1)}' width='${(placed.b.x2 - placed.b.x1 + 2).toFixed(1)}' height='${(placed.b.y2 - placed.b.y1 + 1).toFixed(1)}' rx='2' fill='${grid}' fill-opacity='0.30'/>`;
-  }
-  s += `<text x='${placed.x.toFixed(1)}' y='${placed.y.toFixed(1)}' font-size='${labFs}' font-weight='700' fill='${line}' text-anchor='${placed.a}' data-box='${boxAttr}'>${lab}</text>`;
-
-  // 横轴：首 / 尾真实日期（M/D）
-  if (opt.labels && opt.labels.length === n) {
-    s += `<text x='${padL}' y='${H - 2.5}' font-size='7' fill='${txt}' text-anchor='start'>${opt.labels[0]}</text>`;
-    if (n > 1) s += `<text x='${W - padR}' y='${H - 2.5}' font-size='7' fill='${txt}' text-anchor='end'>${opt.labels[n - 1]}</text>`;
-  }
-
   s += "</svg>";
   return "data:image/svg+xml;base64," + b64(s);
 }
@@ -456,6 +436,22 @@ export default async function (ctx) {
   };
   const tint = (c, a) => ({ light: c.light + a, dark: c.dark + a });
 
+  // ── 中/大号专属配色（参考图：同色系浅底卡 + 同色标签 + 黑色大单价；浅/深色各一套）
+  //    只给中/大号用，small 仍走上面的 COLORS，结构与配色逐字不变。
+  const MC = {
+    pump:   { light: "#FF9F0A", dark: "#FFB347" },
+    p92:    { light: "#E08700", dark: "#FFC061" },
+    p95:    { light: "#EE6B3B", dark: "#FF9E75" },
+    p98:    { light: "#E4473F", dark: "#FF8177" },
+    diesel: { light: "#1E9C53", dark: "#5FD98A" },
+    bg: {
+      p92:    tint({ light: "#FF9F0A", dark: "#FFB347" }, "2B"),
+      p95:    tint({ light: "#FF7A1A", dark: "#FF8F4D" }, "2B"),
+      p98:    tint({ light: "#FF3B30", dark: "#FF6B6B" }, "29"),
+      diesel: tint({ light: "#2E9E4B", dark: "#4CD07A" }, "2B"),
+    },
+  };
+
   // ════════════════════════════════════════════════════════════
   // 3. 缓存读取 + 抓取（保持原有接口 / 超时 / 兜底策略）
   // ════════════════════════════════════════════════════════════
@@ -677,12 +673,12 @@ export default async function (ctx) {
   const adjTxtSmall = adjUnit && adj && adj.range ? `${adjTxt} ${adjUnit}` : adjTxt;
   const adjColor = adj && adj.dir === "up" ? COLORS.up : adj && adj.dir === "down" ? COLORS.down : COLORS.secondary;
 
-  // 走势：优先用 BesFuel 已核实的官方调价历史（真实价格节点 · 元/升，阶梯线）；
+  // 走势：优先用 BesFuel 已核实的官方调价历史（真实价格节点 · 元/升，最多最近 10 轮，普通折线连接）；
   // 历史源失效且无缓存时，退回本脚本自己抓到的价格快照并明确标注；都没有就显示「暂无历史」，绝不画推测曲线。
   let series = [], seriesKind = "none";
   if (SHOW_TREND) {
     const g = bf && bf.grades ? bf.grades[BF_GRADE[FUEL_KEY]] : null;
-    if (g && Array.isArray(g.history) && g.history.length >= 2) {
+    if (g && Array.isArray(g.history) && g.history.length >= 1) {
       series = g.history.map((p) => ({ v: p.price, d: p.date, kind: p.kind || "price" }));
       seriesKind = "official";
     } else {
@@ -741,7 +737,7 @@ export default async function (ctx) {
   // ════════════════════════════════════════════════════════════
   const hDivider = { type: "stack", height: 1, backgroundColor: COLORS.cardBorder, children: [{ type: "spacer" }] };
   const vDivider = (h) => ({ type: "stack", width: 1, height: h, backgroundColor: COLORS.cardBorder, children: [{ type: "spacer" }] });
-  const fuelIcon = (size) => ({ type: "image", src: "sf-symbol:fuelpump.fill", width: size, height: size, color: COLORS.p92 });
+  const fuelIcon = (size, tintColor) => ({ type: "image", src: "sf-symbol:fuelpump.fill", width: size, height: size, color: tintColor || COLORS.p92 });
   const refreshIcon = (size) => ({ type: "image", src: "sf-symbol:arrow.clockwise", width: size, height: size, color: COLORS.tertiary });
 
   // 顶部标题行：小油泵图标 + 标题（自然左对齐）+ 弹性留白 + 刷新图标 + 时间（弱化）
@@ -750,7 +746,7 @@ export default async function (ctx) {
     return {
       type: "stack", direction: "row", alignItems: "center", width: o.w, height: o.h, gap: o.gap === undefined ? 4 : o.gap,
       children: [
-        fuelIcon(o.icon),
+        fuelIcon(o.icon, o.pump),
         { type: "text", text: titleText, flex: 1, font: { size: o.title, weight: "semibold" }, textColor: COLORS.secondary, maxLines: 1, minScale: 0.7 },
         ...(o.withTime === false ? [] : [
           refreshIcon(o.clock),
@@ -807,14 +803,15 @@ export default async function (ctx) {
         ? `${annOn ? "公告日" : "仅日期"} · ${nextDaysTxt}`
         : nextStale ? "窗口已过" : "暂无窗口";
     return {
+      // 参考图右栏：标签弱化 + 关注值加粗放大（仍小于油价数字），两组之间一条细横线
       type: "stack", direction: "column", alignItems: "start", width: o.w, gap: 3,
       children: [
-        { type: "text", text: mainLabel, width: o.w, font: { size: 9 }, textColor: COLORS.tertiary, maxLines: 1 },
-        { type: "text", text: mainVal, width: o.w, font: { size: 11.5, weight: "semibold" }, textColor: mainColor, maxLines: 1, minScale: 0.6 },
+        { type: "text", text: mainLabel, width: o.w, font: { size: 9.5 }, textColor: COLORS.tertiary, maxLines: 1 },
+        { type: "text", text: mainVal, width: o.w, font: { size: 12.5, weight: "bold" }, textColor: mainColor, maxLines: 1, minScale: 0.6 },
         { type: "text", text: mainSub, width: o.w, font: { size: 9 }, textColor: COLORS.secondary, maxLines: 1, minScale: 0.7 },
-        { type: "stack", height: 1, width: o.w - 18, backgroundColor: COLORS.cardBorder, children: [{ type: "spacer" }] },
-        { type: "text", text: secondLabel, width: o.w, font: { size: 9 }, textColor: COLORS.tertiary, maxLines: 1 },
-        { type: "text", text: secondVal, width: o.w, font: { size: 10, weight: "semibold" }, textColor: COLORS.secondary, maxLines: 1, minScale: 0.7 },
+        { type: "stack", height: 1, width: o.w - 16, backgroundColor: COLORS.cardBorder, children: [{ type: "spacer" }] },
+        { type: "text", text: secondLabel, width: o.w, font: { size: 9.5 }, textColor: COLORS.tertiary, maxLines: 1 },
+        { type: "text", text: secondVal, width: o.w, font: { size: 11, weight: "semibold" }, textColor: COLORS.secondary, maxLines: 1, minScale: 0.7 },
         { type: "text", text: secondSub, width: o.w, font: { size: 8.5 }, textColor: COLORS.tertiary, maxLines: 1, minScale: 0.7 },
       ],
     };
@@ -903,25 +900,49 @@ export default async function (ctx) {
   }
 
   // ════════════════════════════════════════════════════════════
-  // 7. 中号 338×158：四价格第一（18pt，等宽 52 卡），走势第二，右栏辅助第三
-  //    widget padding [9,10,7,10] → 可用 318×142
-  //    标题行 20 + gap 6 + 主体 116
-  //    主体：左栏 223（卡 52 + 间距 3 + 图 58，图下注释行已删除，腾出的高度全部给图表）/
-  //          间距 7 / 分隔 1 / 右栏 80
+  // 7. 中/大号共用构件：参考图风格（同色系浅底卡 + 同色标签 + 黑色大单价，无胶囊）
+  //    卡片显式宽高、无 flex；中大号专用配色 MC，与 small 使用的 COLORS 完全隔离。
+  // ════════════════════════════════════════════════════════════
+  const mlRows = allRows.map((r) => ({ ...r, color: MC[r.key], bg: MC.bg[r.key] }));
+  function fuelCardML(row, o) {
+    return {
+      type: "stack", direction: "column", alignItems: "center", width: o.w, height: o.h,
+      gap: 0, padding: o.padding,
+      backgroundColor: row.bg, borderRadius: o.radius,
+      children: [
+        { type: "spacer" },
+        { type: "text", text: row.label, width: o.w - 4, font: { size: o.labelSize, weight: "bold" }, textColor: row.color, maxLines: 1, minScale: 0.8, textAlign: "center" },
+        { type: "text", text: fmt(row.price), width: o.w - 4, font: { size: o.priceSize, weight: "bold" }, textColor: COLORS.primary, maxLines: 1, minScale: 0.6, textAlign: "center" },
+        { type: "spacer" },
+      ],
+    };
+  }
+  function fuelRowML(o) {
+    return {
+      type: "stack", direction: "row", alignItems: "center", width: o.w, height: o.h, gap: o.gap,
+      children: mlRows.map((r) => fuelCardML(r, { ...o, w: o.cardW })),
+    };
+  }
+
+  // ════════════════════════════════════════════════════════════
+  // 8. 中号 338×158：上＝油泵+地区实时油价 / 右＝刷新时间；四卡+折线图在左，调价与下轮日期在右
+  //    widget padding [9,10,6,10] → 内高 143；标题行 20 + gap 6 + 主体 116（留 1px 余量）
+  //    主体：左栏 230（卡 46 + 间距 4 + 图 66）| 间距 7 | 竖分隔 1 | 右栏 80
   // ════════════════════════════════════════════════════════════
   if (!isLarge) {
-    const pad = [9, 10, 7, 10];
+    const pad = [9, 10, 6, 10];
     const contentW = 338 - pad[1] - pad[3];        // 318
-    const RIGHT_W = 80;
-    const LEFT_W = 223, CARD_W_M = 52, CARD_GAP_M = 5, CARD_H_M = 52, CHART_W_M = 223, CHART_H_M = 58;
-    const chartNodeM = SHOW_TREND && series.length >= 2
+    const LEFT_W = 230, RIGHT_W = 80, DIV_GAP = 7;
+    const CARD_GAP_M = 5, CARD_W_M = (LEFT_W - CARD_GAP_M * 3) / 4, CARD_H_M = 46;
+    const CHART_W_M = LEFT_W, CHART_H_M = 66;
+    const chartNodeM = SHOW_TREND && series.length >= 1
       ? { type: "image", src: chartSVG(series, { w: CHART_W_M, h: CHART_H_M, gaps: seriesGaps, labels: seriesLabels }), width: CHART_W_M, height: CHART_H_M }
       : {
-          type: "stack", direction: "column", alignItems: "center", width: LEFT_W, height: CHART_H_M, gap: 1,
+          type: "stack", direction: "column", alignItems: "center", width: CHART_W_M, height: CHART_H_M, gap: 1,
           children: [
             { type: "spacer" },
-            { type: "text", text: SHOW_TREND ? (bfLatest ? "官方核价历史不足 2 点" : (bfReason === "uncovered" ? "BesFuel 未收录该价区" : bfReason === "grade" ? "BesFuel 未核价该油号" : "官方历史源暂不可用")) : "走势已关闭", font: { size: 9 }, textColor: COLORS.tertiary, maxLines: 1, textAlign: "center", minScale: 0.7 },
-            { type: "text", text: SHOW_TREND ? (bfLatest ? "官方核对后自动扩展" : "当前价照常，下次刷新重试") : "可在设置里打开", font: { size: 8 }, textColor: COLORS.tertiary, maxLines: 1, textAlign: "center", minScale: 0.7 },
+            { type: "text", text: SHOW_TREND ? (bfReason === "uncovered" ? "BesFuel 未收录该价区" : bfReason === "grade" ? "BesFuel 未核价该油号" : "官方历史暂不可用") : "走势已关闭", width: CHART_W_M, font: { size: 9 }, textColor: COLORS.tertiary, maxLines: 1, textAlign: "center", minScale: 0.7 },
+            { type: "text", text: SHOW_TREND ? "当前价照常显示，下次刷新重试" : "可在设置里打开", width: CHART_W_M, font: { size: 8 }, textColor: COLORS.tertiary, maxLines: 1, textAlign: "center", minScale: 0.7 },
             { type: "spacer" },
           ],
         };
@@ -930,19 +951,19 @@ export default async function (ctx) {
       type: "widget",
       padding: pad, gap: 6, backgroundColor, refreshAfter: refreshTime,
       children: [
-        headerNode({ w: contentW, h: 20, icon: 14, title: 12.5, time: 11, clock: 11 }),
+        headerNode({ w: contentW, h: 20, icon: 14, title: 14, time: 11.5, clock: 11.5, pump: MC.pump }),
         hasAnyPrice
           ? {
-              type: "stack", direction: "row", alignItems: "center", gap: 7, width: contentW,
+              type: "stack", direction: "row", alignItems: "center", gap: DIV_GAP, width: contentW,
               children: [
                 {
-                  type: "stack", direction: "column", alignItems: "start", gap: 3, width: LEFT_W,
+                  type: "stack", direction: "column", alignItems: "start", width: LEFT_W, gap: 4,
                   children: [
-                    fuelRow({ w: LEFT_W, h: CARD_H_M, cardW: CARD_W_M, gap: CARD_GAP_M, labelSize: 9.5, priceSize: 18, radius: 10, padding: [1, 1, 1, 1] }),
+                    fuelRowML({ w: LEFT_W, h: CARD_H_M, cardW: CARD_W_M, gap: CARD_GAP_M, labelSize: 10, priceSize: 18, radius: 11, padding: [3, 1, 3, 1] }),
                     chartNodeM,
                   ],
                 },
-                vDivider(104),
+                vDivider(100),
                 adjBlockM({ w: RIGHT_W }),
               ],
             }
@@ -952,42 +973,40 @@ export default async function (ctx) {
   }
 
   // ════════════════════════════════════════════════════════════
-  // 8. 大号 338×354：四价格卡第一（26pt / 高 82）/ 图表第二（高 100）/
-  //    底部调价与加满金额第三（17 / 20，均小于价格）
-  //    widget padding [12,14,10,14] → 可用 310×332
-  //    标题行 24 + 8 + 卡 82 + 8 + 图 100 + 5 + 图注 26 + 5 + 分隔 1 + 5 + 底栏 56 = 320
+  // 9. 大号 338×354：全宽四卡 → 大图 → 横分隔线 → 底部左调价与下轮日期 / 竖分隔 / 右加满费用
+  //    widget padding [10,12,8,12] → 内容 314×336；24+6+78+6+126+6+12+6+1+6+58 = 329（留 7px 余量）
+  //    图下只留一行精简图注（来源与核对明细见 README），不再堆来源/核对长注释
   // ════════════════════════════════════════════════════════════
-  const padL = [12, 14, 10, 14];
-  const contentW_L = 338 - padL[1] - padL[3];       // 310
-  const CARD_W_L = 73, CARD_GAP_L = 6, CARD_H_L = 82;
-  const CHART_W_L = 310, CHART_H_L = 100;
+  const padL = [10, 12, 8, 12];
+  const contentW_L = 338 - padL[1] - padL[3];       // 314
+  const CARD_GAP_L = 6, CARD_W_L = (contentW_L - CARD_GAP_L * 3) / 4, CARD_H_L = 78;
+  const CHART_W_L = contentW_L, CHART_H_L = 126;
   const fillCost = focusPrice !== null ? focusPrice * liters : null;
-  const chartNodeL = SHOW_TREND && series.length >= 2
+  const chartNodeL = SHOW_TREND && series.length >= 1
     ? { type: "image", src: chartSVG(series, { w: CHART_W_L, h: CHART_H_L, gaps: seriesGaps, labels: seriesLabels }), width: CHART_W_L, height: CHART_H_L }
     : {
         type: "stack", direction: "column", alignItems: "center", width: contentW_L, height: CHART_H_L, gap: 3,
         backgroundColor: COLORS.card, borderRadius: 12,
         children: [
           { type: "spacer" },
-          { type: "text", text: SHOW_TREND ? bfCapLong : "走势已关闭", font: { size: 10.5 }, textColor: COLORS.secondary, maxLines: 2, textAlign: "center", minScale: 0.75 },
-          { type: "text", text: SHOW_TREND ? (bfReason === "uncovered" ? "BesFuel 只收录已核价的价区；当前价仍来自汽油价格网" : bfReason === "grade" ? "BesFuel 未对 98 号逐期核价，不使用邻近油号推算" : "当前价与调价信息照常显示，下次刷新自动重试") : "可在模块设置里打开", font: { size: 9 }, textColor: COLORS.tertiary, maxLines: 1, textAlign: "center", minScale: 0.7 },
+          { type: "text", text: SHOW_TREND ? bfCapLong : "走势已关闭", width: contentW_L - 16, font: { size: 10.5 }, textColor: COLORS.secondary, maxLines: 2, textAlign: "center", minScale: 0.75 },
+          { type: "text", text: SHOW_TREND ? (bfReason === "uncovered" ? "BesFuel 只收录已核价的价区；当前价仍来自汽油价格网" : bfReason === "grade" ? "BesFuel 未对 98 号逐期核价，不使用邻近油号推算" : "当前价与调价信息照常显示，下次刷新自动重试") : "可在模块设置里打开", width: contentW_L - 16, font: { size: 9 }, textColor: COLORS.tertiary, maxLines: 1, textAlign: "center", minScale: 0.7 },
           { type: "spacer" },
         ],
       };
-  const capNodeLCap = {
-    type: "stack", direction: "column", alignItems: "start", width: CHART_W_L, gap: 1,
-    children: [
-      { type: "text", text: bfCapLong, width: CHART_W_L, font: { size: 10 } , textColor: bfLatest ? bfColor : COLORS.secondary, maxLines: 1, minScale: 0.6 },
-      { type: "text", text: bfMetaTxt || "历史节点来自官方公告核对，现价来自汽油价格网", width: CHART_W_L, font: { size: 9 }, textColor: COLORS.tertiary, maxLines: 1, minScale: 0.55 },
-    ],
-  };
+  // 图注：一行讲清「哪个油品 / 最近一轮何时生效 / 较上轮多少」，来源与核对明细移 README
+  const capTextL = seriesKind === "official"
+    ? `${FUEL_LABEL} 官方核价 · ${bf.name} · ${bfDateLabel} 生效 · 最新 ${bfLatest ? bfLatest.v.toFixed(2) : "--"} · ${series.length < 2 ? "仅 1 轮" : bfDeltaTxt}${bfStale ? " · 缓存" : ""}`
+    : `本地快照走势 · ${series.length} 个真实节点 · 官方源暂不可用`;
+  const capNodeL = SHOW_TREND && series.length >= 1
+    ? { type: "text", text: capTextL, width: CHART_W_L, font: { size: 9 }, textColor: bfLatest ? bfColor : COLORS.tertiary, maxLines: 1, minScale: 0.75, textAlign: "center" }
+    : null;
   const colW_L = (contentW_L - 1 - 20) / 2;         // 两栏 + 1px 分隔 + 10×2 间距
 
   // 大号底栏调价块：主信息优先下轮——只有真实幅度（预测）或公告才占主位，且明确标注；
   // 只有窗口日期时主信息仍是「最近调价」，下轮日期在副行注明「预计/公告」。
   const bigFcOn = nextInfo.kind === "forecast";
   const bigAnnOn = nextInfo.kind === "window" && nextInfo.badge === "公告";
-  // 公告级：有未来公告日期但没有金额 → 主信息仍是最近调价，公告日期只在副行标注
   const bigMainLabel = bigFcOn ? "下轮预测（全国）" : "最近调价（全国）";
   const bigMainVal = bigFcOn ? nextAmtTxt : adjTxt;
   const bigMainColor = bigFcOn ? nextAmtColor : adjColor;
@@ -1004,40 +1023,40 @@ export default async function (ctx) {
 
   return {
     type: "widget",
-    padding: padL, gap: 8, backgroundColor, refreshAfter: refreshTime,
+    padding: padL, gap: 6, backgroundColor, refreshAfter: refreshTime,
     children: [
-      headerNode({ w: contentW_L, h: 24, icon: 16, title: 15, time: 12, clock: 12 }),
+      headerNode({ w: contentW_L, h: 24, icon: 17, title: 16, time: 12.5, clock: 13, pump: MC.pump }),
       hasAnyPrice
         ? {
-            type: "stack", direction: "column", alignItems: "center", gap: 7,
+            type: "stack", direction: "column", alignItems: "center", gap: 6,
             children: [
-              fuelRow({ w: contentW_L, h: CARD_H_L, cardW: CARD_W_L, gap: CARD_GAP_L, labelSize: 11, priceSize: 26, radius: 14, padding: [3, 1, 3, 1] }),
+              fuelRowML({ w: contentW_L, h: CARD_H_L, cardW: CARD_W_L, gap: CARD_GAP_L, labelSize: 12, priceSize: 26, radius: 14, padding: [6, 2, 6, 2] }),
               chartNodeL,
-              ...(series.length >= 2 ? [{ type: "stack", direction: "column", alignItems: "center", width: contentW_L, gap: 1, children: [capNodeLCap] }] : []),
+              ...(capNodeL ? [capNodeL] : []),
               hDivider,
               {
-                type: "stack", direction: "row", alignItems: "center", width: contentW_L, gap: 10,
+                type: "stack", direction: "row", alignItems: "center", width: contentW_L, height: 58, gap: 10,
                 children: [
                   ...(SHOW_TREND ? [{
                     type: "stack", direction: "column", alignItems: "start", width: colW_L, gap: 2,
                     children: [
-                      { type: "text", text: bigMainLabel, font: { size: 10 }, textColor: COLORS.tertiary, maxLines: 1 },
-                      { type: "text", text: bigMainVal, width: colW_L, font: { size: 17, weight: "semibold" }, textColor: bigMainColor, maxLines: 1, minScale: 0.6 },
+                      { type: "text", text: bigMainLabel, width: colW_L, font: { size: 10 }, textColor: COLORS.tertiary, maxLines: 1 },
+                      { type: "text", text: bigMainVal, width: colW_L, font: { size: 17, weight: "bold" }, textColor: bigMainColor, maxLines: 1, minScale: 0.6 },
                       { type: "text", text: bigSub, width: colW_L, font: { size: 9.5 }, textColor: COLORS.secondary, maxLines: 1, minScale: 0.7 },
                     ],
-                  }, vDivider(48)] : []),
+                  }, vDivider(44)] : []),
                   {
                     type: "stack", direction: "column", alignItems: "start", width: SHOW_TREND ? colW_L : contentW_L, gap: 2,
                     children: [
                       {
                         type: "stack", direction: "row", alignItems: "center", gap: 3,
                         children: [
-                          { type: "image", src: "sf-symbol:fuelpump.fill", width: 10, height: 10, color: COLORS.tertiary },
+                          { type: "image", src: "sf-symbol:fuelpump.fill", width: 11, height: 11, color: COLORS.tertiary },
                           { type: "text", text: `${focusRow.label}加满 ${liters}L`, font: { size: 10 }, textColor: COLORS.secondary, maxLines: 1, minScale: 0.8 },
                         ],
                       },
-                      { type: "text", text: fillCost !== null ? `¥${fillCost.toFixed(2)}` : "暂无数据", font: { size: 20, weight: "semibold" }, textColor: COLORS.primary, maxLines: 1, minScale: 0.6 },
-                      { type: "text", text: focusPrice !== null ? `单价 ${focusPrice.toFixed(2)} 元/升 · 现价 汽油价格网` : "单价暂无数据", font: { size: 9 }, textColor: COLORS.tertiary, maxLines: 1, minScale: 0.7 },
+                      { type: "text", text: fillCost !== null ? `¥${fillCost.toFixed(2)}` : "暂无数据", width: SHOW_TREND ? colW_L : contentW_L, font: { size: 20, weight: "bold" }, textColor: COLORS.primary, maxLines: 1, minScale: 0.6 },
+                      { type: "text", text: focusPrice !== null ? `单价 ${focusPrice.toFixed(2)} 元/升 · 现价 汽油价格网` : "单价暂无数据", width: SHOW_TREND ? colW_L : contentW_L, font: { size: 9 }, textColor: COLORS.tertiary, maxLines: 1, minScale: 0.7 },
                     ],
                   },
                 ],
