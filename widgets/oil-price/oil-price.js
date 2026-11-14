@@ -1,5 +1,5 @@
 /**
- * ⛽ 全国实时油价小组件 v4.5.0（Egern 模块版 · 小号底部补下轮调价行 / 中号左右留白与右栏块高对齐）
+ * ⛽ 全国实时油价小组件 v4.5.1（Egern 模块版 · 中号右栏放大字号并按块高填满 / 消除中空；小号与大号返回树未动）
  * 现价源：http://m.qiyoujiage.com/（省份 / 城市页面）
  * 历史源：BesFuel（https://github.com/BensonLaur/BesFuel）已核实的发改委调价历史（元/升，真实节点）
  * 原作者：Egern 群友 tg://user?id=5122789128 · 二次修改 iBL3ND
@@ -786,9 +786,12 @@ export default async function (ctx) {
   }
 
   // 中号右栏：两块（上＝最近调价 / 下＝下轮），块高与左栏严格对齐——
-  // 上块高 = 四卡行高（内容上下居中，与卡片标签/价格同一条中轴），下块高 = 图表高（内容贴底，
-  // 末行与图表底部日期区同一基线）。主信息优先下轮：有真实幅度才显示下轮幅度，否则主信息为
-  // 最近调价，下轮只写日期并明确标注「距日期」。整体次要字号（≤12.5）与弱化颜色。
+  // 上块 46（= 四卡行高）：标题 10 / 数值 14.5 / 副行 9.5 + 1pt 行距 → 13+1+19+1+12 = 46，
+  //   内容自然高正好撑满块高，与卡片标签/价格同一条中轴（不再靠 spacer 居中留出上下空档）。
+  // 下块 66（= 图表高）：分隔线贴块首（与左栏「卡行/图表」分界同一条线）+ 5/4/4/5 节奏排布
+  //   11 / 16 / 10 → 1+5+14+4+20+4+13+5 = 66，末行压到图表底部日期区基线，块内不再有 20pt 中空。
+  // 主信息优先下轮：有真实幅度才显示下轮幅度，否则主信息为最近调价，下轮只写日期并明确标注
+  // 「距日期」。整体次要字号 ≤16（仍小于油价 18pt）与弱化颜色。
   function adjBlockM(o) {
     const w = o.w;
     const fcOn = nextInfo.kind === "forecast";
@@ -809,27 +812,31 @@ export default async function (ctx) {
         : nextStale ? "窗口已过" : "暂无窗口";
     const textW = (x) => ({ type: "text", text: x.text, width: w, font: x.font, textColor: x.textColor, maxLines: 1, minScale: x.minScale });
     return {
-      // 参考图右栏：标签弱化 + 关注值加粗放大（仍小于油价数字），两块之间一条细横线
+      // 参考图右栏：标签弱化 + 关注值加粗放大（仍小于油价 18pt），分隔线贴下块首
+      // （与左栏「四卡行/图表」分界同一条线），下块三行按 5pt 节奏排到底，末行贴图表底部日期基线
       type: "stack", direction: "column", alignItems: "start", width: w, gap: o.gap,
       children: [
         {
+          // 上块：13(10pt) + 1 + 19(15pt) + 1 + 12(9.5pt) = 46 = 四卡行高（无上下空档）
           type: "stack", direction: "column", alignItems: "start", width: w, height: o.topH, gap: 1,
           children: [
-            { type: "spacer" },
-            textW({ text: mainLabel, font: { size: 9.5 }, textColor: COLORS.tertiary }),
-            textW({ text: mainVal, font: { size: 12.5, weight: "bold" }, textColor: mainColor, minScale: 0.6 }),
-            textW({ text: mainSub, font: { size: 9 }, textColor: COLORS.secondary, minScale: 0.7 }),
-            { type: "spacer" },
+            textW({ text: mainLabel, font: { size: 10 }, textColor: COLORS.tertiary, minScale: 0.8 }),
+            textW({ text: mainVal, font: { size: 14.5, weight: "bold" }, textColor: mainColor, minScale: 0.75 }),
+            textW({ text: mainSub, font: { size: 9.5 }, textColor: COLORS.secondary, minScale: 0.7 }),
           ],
         },
         {
-          type: "stack", direction: "column", alignItems: "start", width: w, height: o.botH, gap: 2,
+          // 下块：1 + 5 + 14(11pt) + 4 + 20(16pt) + 4 + 13(10pt) + 5 = 66 = 图表高
+          type: "stack", direction: "column", alignItems: "start", width: w, height: o.botH, gap: 0,
           children: [
-            { type: "spacer" },
             { type: "stack", height: 1, width: w - 10, backgroundColor: COLORS.cardBorder, children: [{ type: "spacer" }] },
-            textW({ text: secondLabel, font: { size: 9.5 }, textColor: COLORS.tertiary }),
-            textW({ text: secondVal, font: { size: 11, weight: "semibold" }, textColor: COLORS.secondary, minScale: 0.7 }),
-            textW({ text: secondSub, font: { size: 8.5 }, textColor: COLORS.tertiary, minScale: 0.7 }),
+            { type: "spacer", length: 5 },
+            textW({ text: secondLabel, font: { size: 11 }, textColor: COLORS.tertiary, minScale: 0.8 }),
+            { type: "spacer", length: 4 },
+            textW({ text: secondVal, font: { size: 16, weight: "semibold" }, textColor: COLORS.secondary, minScale: 0.7 }),
+            { type: "spacer", length: 4 },
+            textW({ text: secondSub, font: { size: 10 }, textColor: COLORS.tertiary, minScale: 0.7 }),
+            { type: "spacer", length: 5 },
           ],
         },
       ],
