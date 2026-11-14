@@ -31,6 +31,7 @@
 
 const PAD2 = (n) => String(n).padStart(2, "0");
 const MD = (d) => `${d.getMonth() + 1}月${d.getDate()}日`;
+const MDs = (d) => `${d.getMonth() + 1}/${d.getDate()}`;   // 紧凑日期：宽预算紧张的行用（同图表横轴风格）
 const YMD = (d) => `${d.getFullYear()}-${PAD2(d.getMonth() + 1)}-${PAD2(d.getDate())}`;
 
 /** 10 个工作日（跳过周六周日；不含法定节假日调整，故只称「预计」） */
@@ -1060,10 +1061,11 @@ export default async function (ctx) {
   const adjShort = adj && adj.range
     ? `${adj.dir === "down" ? "↓" : adj.dir === "up" ? "↑" : "→"}${String(adj.range).split("-")[0]}`
     : "";
+  // 大号底部左栏只有 146.5pt：副行必须能按原字号放下（不加「距 N 天」，否则会压到右栏「单价」）
   const bigSub = bigFcOn
     ? `${nextDateTxt} 执行 · ${adjShort ? `最近 ${adjShort}` : "预测"}`
     : nextInfo.date
-      ? `${adjDate ? MD(adjDate) : "—"} 24时 · 下轮 ${nextDateTxt}${bigAnnOn ? " 公告" : " 预计"}${daysLeft >= 0 ? ` · 距${daysLeft}天` : ""}`
+      ? `${adjDate ? MDs(adjDate) : "—"} 24时 · 下轮 ${nextInfo.date ? MDs(nextInfo.date) : "—"}${bigAnnOn ? " 公告" : " 预计"}`
       : nextStale
         ? `${adjDate ? MD(adjDate) : "—"} 24时 · 下轮窗口待更新`
         : (adjDate ? `${MD(adjDate)} 24时` : "日期暂无数据");
