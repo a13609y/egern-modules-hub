@@ -1,5 +1,5 @@
 /**
- * ⛽ 全国实时油价小组件 v4.4.0（Egern 模块版 · 中/大号按参考图重排：同色浅底卡 + 黑单价 + 折线面积图）
+ * ⛽ 全国实时油价小组件 v4.5.0（Egern 模块版 · 小号底部补下轮调价行 / 中号左右留白与右栏块高对齐）
  * 现价源：http://m.qiyoujiage.com/（省份 / 城市页面）
  * 历史源：BesFuel（https://github.com/BensonLaur/BesFuel）已核实的发改委调价历史（元/升，真实节点）
  * 原作者：Egern 群友 tg://user?id=5122789128 · 二次修改 iBL3ND
@@ -23,7 +23,7 @@
  * - 下一轮信息分三级，绝不把「只有窗口日期」说成「下轮幅度」：
  *   1) 公告/预测级：只有 BesFuel 快照 nationalAdjustment 里带真实金额或明确公告标记时才作为主信息，
  *      并强制标注来源与「预测/公告」；2) 仅窗口级：只有下轮日期（BesFuel 官方规则+放假推算，或本地
- *      10 个工作日推算）时，主信息回退为「最近调价」，下轮只写日期并注明「仅日期/预计」；
+ *      10 个工作日推算）时，主信息回退为「最近调价」，下轮只写日期并注明「距日期/预计」；
  *   3) 窗口已过期：日期早于今天一律不再当「下轮」，显示「窗口待更新」。
  * - 站点（汽油价格网）与 BesFuel 快照 currently 都不提供可信的下一轮涨跌幅度（forecast 字段为空），
  *   故默认走第 2 级；本脚本不伪造预测，也不做无授权的复杂新源研究。
@@ -393,6 +393,7 @@ export default async function (ctx) {
     return { slice: null, stale: true, err };
   }
 
+  // 默认打开：未配置（undefined）、空串（模块模板未填）都按 true 处理，只有显式 false/0/no/off 才关
   const trendRaw = String(ctx.env.SHOW_TREND ?? "true").trim().toLowerCase();
   const SHOW_TREND = !["false", "0", "no", "off", "hide", "隐藏"].includes(trendRaw);
 
@@ -628,7 +629,7 @@ export default async function (ctx) {
   // ── 下轮信息分级（绝不把「只有日期」说成「下轮涨跌幅」）────────────
   // forecast：快照里真有下轮金额 → 主信息显示幅度，并强制标注「预测」与来源
   // window  ：只有日期（BesFuel 官方规则+放假推算，或本地 10 工作日推算）→ 主信息仍是最近调价，
-  //           下轮只写日期并注明「仅日期/预计」；公告级（有公告来源）则标「公告」
+  //           下轮只写日期并注明「距日期/预计」；公告级（有公告来源）则标「公告」
   // none    ：窗口已过期或完全无数据 → 主信息为最近调价，下轮显示「待更新」
   const fc = bf && bf.fc ? bf.fc : null;
   const fcD = fc && fc.window ? new Date(`${fc.window}T00:00:00`) : null;
@@ -783,9 +784,12 @@ export default async function (ctx) {
     };
   }
 
-  // 中号右栏：调价辅助信息（主信息优先下轮：有真实幅度才显示下轮幅度，否则主信息为最近调价，
-  // 下轮只写日期并明确标注「仅日期」）。整体次要字号（≤11.5）与弱化颜色。
+  // 中号右栏：两块（上＝最近调价 / 下＝下轮），块高与左栏严格对齐——
+  // 上块高 = 四卡行高（内容上下居中，与卡片标签/价格同一条中轴），下块高 = 图表高（内容贴底，
+  // 末行与图表底部日期区同一基线）。主信息优先下轮：有真实幅度才显示下轮幅度，否则主信息为
+  // 最近调价，下轮只写日期并明确标注「距日期」。整体次要字号（≤12.5）与弱化颜色。
   function adjBlockM(o) {
+    const w = o.w;
     const fcOn = nextInfo.kind === "forecast";
     const annOn = nextInfo.kind === "window" && nextInfo.badge === "公告";
     // 公告级（有日期无金额）不能让最近调价的幅度顶到「下轮公告」名下
@@ -800,19 +804,33 @@ export default async function (ctx) {
     const secondSub = fcOn
       ? (adjDate ? `${MD(adjDate)} 24时` : "—")
       : nextInfo.date
-        ? `${annOn ? "公告日" : "仅日期"} · ${nextDaysTxt}`
+        ? `${annOn ? "公告日" : "距日期"} · ${nextDaysTxt}`
         : nextStale ? "窗口已过" : "暂无窗口";
+    const textW = (x) => ({ type: "text", text: x.text, width: w, font: x.font, textColor: x.textColor, maxLines: 1, minScale: x.minScale });
     return {
-      // 参考图右栏：标签弱化 + 关注值加粗放大（仍小于油价数字），两组之间一条细横线
-      type: "stack", direction: "column", alignItems: "start", width: o.w, gap: 3,
+      // 参考图右栏：标签弱化 + 关注值加粗放大（仍小于油价数字），两块之间一条细横线
+      type: "stack", direction: "column", alignItems: "start", width: w, gap: o.gap,
       children: [
-        { type: "text", text: mainLabel, width: o.w, font: { size: 9.5 }, textColor: COLORS.tertiary, maxLines: 1 },
-        { type: "text", text: mainVal, width: o.w, font: { size: 12.5, weight: "bold" }, textColor: mainColor, maxLines: 1, minScale: 0.6 },
-        { type: "text", text: mainSub, width: o.w, font: { size: 9 }, textColor: COLORS.secondary, maxLines: 1, minScale: 0.7 },
-        { type: "stack", height: 1, width: o.w - 16, backgroundColor: COLORS.cardBorder, children: [{ type: "spacer" }] },
-        { type: "text", text: secondLabel, width: o.w, font: { size: 9.5 }, textColor: COLORS.tertiary, maxLines: 1 },
-        { type: "text", text: secondVal, width: o.w, font: { size: 11, weight: "semibold" }, textColor: COLORS.secondary, maxLines: 1, minScale: 0.7 },
-        { type: "text", text: secondSub, width: o.w, font: { size: 8.5 }, textColor: COLORS.tertiary, maxLines: 1, minScale: 0.7 },
+        {
+          type: "stack", direction: "column", alignItems: "start", width: w, height: o.topH, gap: 1,
+          children: [
+            { type: "spacer" },
+            textW({ text: mainLabel, font: { size: 9.5 }, textColor: COLORS.tertiary }),
+            textW({ text: mainVal, font: { size: 12.5, weight: "bold" }, textColor: mainColor, minScale: 0.6 }),
+            textW({ text: mainSub, font: { size: 9 }, textColor: COLORS.secondary, minScale: 0.7 }),
+            { type: "spacer" },
+          ],
+        },
+        {
+          type: "stack", direction: "column", alignItems: "start", width: w, height: o.botH, gap: 2,
+          children: [
+            { type: "spacer" },
+            { type: "stack", height: 1, width: w - 10, backgroundColor: COLORS.cardBorder, children: [{ type: "spacer" }] },
+            textW({ text: secondLabel, font: { size: 9.5 }, textColor: COLORS.tertiary }),
+            textW({ text: secondVal, font: { size: 11, weight: "semibold" }, textColor: COLORS.secondary, minScale: 0.7 }),
+            textW({ text: secondSub, font: { size: 8.5 }, textColor: COLORS.tertiary, minScale: 0.7 }),
+          ],
+        },
       ],
     };
   }
@@ -842,8 +860,8 @@ export default async function (ctx) {
 
   // ════════════════════════════════════════════════════════════
   // 6. 小号 158×158：标题与更新时间同一行（左＝油泵+地区油价，右＝刷新图标+时间，中间 flex 撑开）/ 2×2 四格
-  //    widget padding 9/10 → 可用 138×140；标题行 18 + gap 6 + 网格 113 = 137（删掉独立时间行后
-  //    腾出的高度全部给四格：单元格高 46→54，价格仍按原字号放得下）
+  //    widget padding 9/10 → 可用 138×140；标题行 18 + gap 6 + 网格 97 + gap 6 + 下轮调价行 13
+  //    = 140，正好填满内高（标题行与四格一个像素都没动，只在原底部空白处补下轮调价信息）
   // ════════════════════════════════════════════════════════════
   if (isSmall) {
     const SW = 138;                      // 158 - 左右 padding 各 10
@@ -851,6 +869,7 @@ export default async function (ctx) {
     const CELL_W = (SW - GAP) / 2;       // 66：两列严格等宽
     const CELL_H = 46;
     const ROW_GAP = 5;
+    const FOOT_H = 13;                   // 底部下轮行：只占原空白区，不挤压四格
     const cell = (r) => ({
       type: "stack", direction: "column", alignItems: "center",
       width: CELL_W, height: CELL_H, gap: 1, padding: [2, 2, 2, 2],
@@ -866,6 +885,23 @@ export default async function (ctx) {
       type: "stack", direction: "row", alignItems: "center", width: SW, height: CELL_H, gap: GAP,
       children: [cell(a), cell(b)],
     });
+    // 底部下轮调价行：左＝下轮级别（预测/预计/公告）+ 日期，右＝距该日期的天数（保留「预计」语义，
+    // 不把日期当涨跌幅）。仅窗口时右栏写「距日期 · N 天」，窗口过期写「窗口已过」。
+    const footLabel = nextInfo.kind === "forecast"
+      ? "下轮预测"
+      : nextInfo.kind === "window" ? (nextInfo.badge === "公告" ? "下轮公告" : "下轮预计") : "下轮调价";
+    const footDate = nextInfo.date ? `${nextInfo.date.getMonth() + 1}/${nextInfo.date.getDate()}` : "";
+    const footTail = nextInfo.kind === "forecast"
+      ? `${nextAmtTxt} 元/升`
+      : nextInfo.date ? `距日期 · ${nextDaysTxt}` : nextStale ? "窗口已过" : "暂无窗口";
+    const footNode = {
+      type: "stack", direction: "row", alignItems: "center", width: SW, height: FOOT_H, gap: 3,
+      children: [
+        { type: "image", src: "sf-symbol:calendar", width: 9, height: 9, color: COLORS.tertiary },
+        { type: "text", text: `${footLabel} ${footDate}`.replace(/\s+$/, ""), flex: 1, font: { size: 9, weight: "semibold" }, textColor: COLORS.secondary, maxLines: 1, minScale: 0.7 },
+        { type: "text", text: footTail, font: { size: 8.5 }, textColor: COLORS.tertiary, maxLines: 1, minScale: 0.7 },
+      ],
+    };
     return {
       type: "widget",
       padding: [9, 10, 9, 10], gap: 6, backgroundColor, refreshAfter: refreshTime,
@@ -895,6 +931,8 @@ export default async function (ctx) {
                 { type: "spacer" },
               ],
             },
+        // 下轮调价行：只在四格下方（原空白区）出现，错误态不显示
+        ...(hasAnyPrice ? [footNode] : []),
       ],
     };
   }
@@ -904,15 +942,18 @@ export default async function (ctx) {
   //    卡片显式宽高、无 flex；中大号专用配色 MC，与 small 使用的 COLORS 完全隔离。
   // ════════════════════════════════════════════════════════════
   const mlRows = allRows.map((r) => ({ ...r, color: MC[r.key], bg: MC.bg[r.key] }));
+  // 卡内左右留白 = padding 左右（中号 3pt）→ 文本盒宽 = 卡宽 - 2*padding，数字离卡片边框 ≥3pt
+  //（旧版 padding 左右 1pt、文本盒 = 卡宽-4，92 号数字几乎贴到卡边）
   function fuelCardML(row, o) {
+    const boxW = o.w - 2 * (Array.isArray(o.padding) ? o.padding[1] : o.padding);
     return {
       type: "stack", direction: "column", alignItems: "center", width: o.w, height: o.h,
       gap: 0, padding: o.padding,
       backgroundColor: row.bg, borderRadius: o.radius,
       children: [
         { type: "spacer" },
-        { type: "text", text: row.label, width: o.w - 4, font: { size: o.labelSize, weight: "bold" }, textColor: row.color, maxLines: 1, minScale: 0.8, textAlign: "center" },
-        { type: "text", text: fmt(row.price), width: o.w - 4, font: { size: o.priceSize, weight: "bold" }, textColor: COLORS.primary, maxLines: 1, minScale: 0.6, textAlign: "center" },
+        { type: "text", text: row.label, width: boxW, font: { size: o.labelSize, weight: "bold" }, textColor: row.color, maxLines: 1, minScale: 0.8, textAlign: "center" },
+        { type: "text", text: fmt(row.price), width: boxW, font: { size: o.priceSize, weight: "bold" }, textColor: COLORS.primary, maxLines: 1, minScale: 0.6, textAlign: "center" },
         { type: "spacer" },
       ],
     };
@@ -927,13 +968,19 @@ export default async function (ctx) {
   // ════════════════════════════════════════════════════════════
   // 8. 中号 338×158：上＝油泵+地区实时油价 / 右＝刷新时间；四卡+折线图在左，调价与下轮日期在右
   //    widget padding [9,10,6,10] → 内高 143；标题行 20 + gap 6 + 主体 116（留 1px 余量）
-  //    主体：左栏 230（卡 46 + 间距 4 + 图 66）| 间距 7 | 竖分隔 1 | 右栏 80
+  //    主体宽 318 严格分配：左栏 230 | 竖分隔留白 6 | 线 1 | 竖分隔留白 6 | 右栏 75 = 318
+  //    （旧版 230+7+1+7+80=325 超宽 7pt，右栏被挤出右边距 → 左右不对称，本次按预算收平）
+  //    竖直：左栏 = 卡行 46 + gap 4 + 图 66 = 116；右栏上块 46、下块 66，同 gap 4 → 两块边界与
+  //    左栏卡行底/图底严格对齐（不是只改文字，块高与位置都按预算给）。
   // ════════════════════════════════════════════════════════════
   if (!isLarge) {
     const pad = [9, 10, 6, 10];
     const contentW = 338 - pad[1] - pad[3];        // 318
-    const LEFT_W = 230, RIGHT_W = 80, DIV_GAP = 7;
-    const CARD_GAP_M = 5, CARD_W_M = (LEFT_W - CARD_GAP_M * 3) / 4, CARD_H_M = 46;
+    const DIV_W = 1, DIV_GAP = 6;                  // 竖分隔线两侧留白相等 → 右栏与左栏留白对称
+    const LEFT_W = 230, RIGHT_W = contentW - LEFT_W - DIV_GAP * 2 - DIV_W;   // 75
+    const CARD_GAP_M = 4, CARD_W_M = (LEFT_W - CARD_GAP_M * 3) / 4, CARD_H_M = 46;   // 54.5
+    const CARD_PAD_M = 3;                          // 卡内左右留白，数字离卡边 ≥3pt（旧版 1pt 贴边）
+    const BODY_GAP_M = 4;                          // 卡行与图表间距，右栏两块沿用同一间距
     const CHART_W_M = LEFT_W, CHART_H_M = 66;
     const chartNodeM = SHOW_TREND && series.length >= 1
       ? { type: "image", src: chartSVG(series, { w: CHART_W_M, h: CHART_H_M, gaps: seriesGaps, labels: seriesLabels }), width: CHART_W_M, height: CHART_H_M }
@@ -954,17 +1001,17 @@ export default async function (ctx) {
         headerNode({ w: contentW, h: 20, icon: 14, title: 14, time: 11.5, clock: 11.5, pump: MC.pump }),
         hasAnyPrice
           ? {
-              type: "stack", direction: "row", alignItems: "center", gap: DIV_GAP, width: contentW,
+              type: "stack", direction: "row", alignItems: "start", gap: DIV_GAP, width: contentW,
               children: [
                 {
-                  type: "stack", direction: "column", alignItems: "start", width: LEFT_W, gap: 4,
+                  type: "stack", direction: "column", alignItems: "start", width: LEFT_W, gap: BODY_GAP_M,
                   children: [
-                    fuelRowML({ w: LEFT_W, h: CARD_H_M, cardW: CARD_W_M, gap: CARD_GAP_M, labelSize: 10, priceSize: 18, radius: 11, padding: [3, 1, 3, 1] }),
+                    fuelRowML({ w: LEFT_W, h: CARD_H_M, cardW: CARD_W_M, gap: CARD_GAP_M, labelSize: 10, priceSize: 18, radius: 11, padding: [3, CARD_PAD_M, 3, CARD_PAD_M] }),
                     chartNodeM,
                   ],
                 },
-                vDivider(100),
-                adjBlockM({ w: RIGHT_W }),
+                vDivider(CARD_H_M + BODY_GAP_M + CHART_H_M - 4),
+                adjBlockM({ w: RIGHT_W, gap: BODY_GAP_M, topH: CARD_H_M, botH: CHART_H_M }),
               ],
             }
           : emptyNode(errText, 12, contentW),
@@ -1016,7 +1063,7 @@ export default async function (ctx) {
   const bigSub = bigFcOn
     ? `${nextDateTxt} 执行 · ${adjShort ? `最近 ${adjShort}` : "预测"}`
     : nextInfo.date
-      ? `${adjDate ? MD(adjDate) : "—"} 24时 · 下轮 ${nextDateTxt}${bigAnnOn ? " 公告" : " 预计"}`
+      ? `${adjDate ? MD(adjDate) : "—"} 24时 · 下轮 ${nextDateTxt}${bigAnnOn ? " 公告" : " 预计"}${daysLeft >= 0 ? ` · 距${daysLeft}天` : ""}`
       : nextStale
         ? `${adjDate ? MD(adjDate) : "—"} 24时 · 下轮窗口待更新`
         : (adjDate ? `${MD(adjDate)} 24时` : "日期暂无数据");
