@@ -1,5 +1,5 @@
 /**
- * ⛽ 全国实时油价小组件 v4.6.2（Egern 模块版 · 预测统一元/升 + 四油品区间（汽油/柴油密度换算）/ 中号右栏三块 36pt 铺满）
+ * ⛽ 全国实时油价小组件 v4.6.3（Egern 模块版 · 预测统一元/升 + 四油品区间（汽油/柴油密度换算）/ 中号右栏三块 36pt 铺满 / 三尺寸预测文案精简）
  *
  * 现价源：http://m.qiyoujiage.com/（省份 / 城市页面）
  * 历史源：BesFuel（https://github.com/BensonLaur/BesFuel）已核实的发改委调价历史（元/升，真实节点）
@@ -779,7 +779,7 @@ export default async function (ctx) {
       saveBudget("reserved", 0);                   // 先落预算再发请求：中途失败也算今天已用
       let resp = null, body = null, status = 0;
       try {
-        const headers = { "content-type": "application/json", accept: "application/json", "user-agent": "EgernOilWidget/4.6.2" };
+        const headers = { "content-type": "application/json", accept: "application/json", "user-agent": "EgernOilWidget/4.6.3" };
         if (OIL_KEY) headers.authorization = `Bearer ${OIL_KEY}`;
         resp = await ctx.http.post(FC_URL, { headers, body: { province: cnProv }, timeout: 8000 });
         status = resp ? resp.status : 0;
@@ -851,6 +851,8 @@ export default async function (ctx) {
   const fcUnit = fcValid && fcData.fc.dir !== "flat" ? "元/升" : "";   // 三尺寸统一元/升（与最近调价同单位）
   const fcColor = !fcValid ? COLORS.secondary : fcData.fc.dir === "up" ? COLORS.up : fcData.fc.dir === "down" ? COLORS.down : COLORS.secondary;
   const fcText = fcValid ? fcAmt : "暂无预测";                 // 缺有效数据 → 暂无预测（不冒充）
+  // v4.6.3：中号 / 小号预测位只写「方向 + 数值/区间」——不带「约」（估算标记）也不带单位。
+  const fcPlain = fcValid ? (fcData.fc.dir === "flat" ? "搁浅" : `${fcArrow}${fcData.fc.amt}`) : "暂无预测";
 
   // 下轮预计调价时间：优先文档 next_adjustment（服务提示），否则回退已有窗口并标「预计」
   const apiNext = fcWindowOk;
@@ -1013,7 +1015,7 @@ export default async function (ctx) {
   //   块内「紧凑两行」骨架：标题 10pt（行高 13）+ 数值 15.5pt（行高 20）+ 只补 1~3pt 顶留白，
   //     半空 → 36pt 被标题与数值铺满（旧版 9pt / 13.5pt + 上下 2/4pt 留白）；
   //   标题 10pt 都是在 75pt 内整行放得下的短标签（「下轮预计时间」≤63.6pt），不再靠 minScale 缩字。
-  //   最近调价不带日期副行、不显示剩余天数；预测统一「元/升」区间（吨价换算来的值标「约」）。
+  //   最近调价不带日期副行、不显示剩余天数；预测块标题只「涨跌预测」、数值只方向+区间（v4.6.3 去掉「约」与单位）。
   const adjBlockM = (o) => {
     const w = o.w, gapM = 4;
     const h = (o.totalH - gapM * 2) / 3;                 // (116 - 8) / 3 = 36：三块严格等高
@@ -1031,7 +1033,7 @@ export default async function (ctx) {
       type: "stack", direction: "column", alignItems: "start", width: w, gap: gapM,
       children: [
         block("最近调价", adjTxt, adjColor, false),
-        block(fcValid && fcUnit ? "涨跌预测 元/升" : "涨跌预测", fcText, fcColor, true),
+        block("涨跌预测", fcPlain, fcColor, true),
         block("下轮预计时间", nextTimeTxt, COLORS.secondary, true),
       ],
     };
@@ -1087,16 +1089,13 @@ export default async function (ctx) {
       type: "stack", direction: "row", alignItems: "center", width: SW, height: CELL_H, gap: GAP,
       children: [cell(a), cell(b)],
     });
-    // 底部行（v4.6.0）：涨跌预测替代原下轮行，只在有可行下轮日期时紧凑保留日期（7/3 调），
+    // 底部行（v4.6.0 起替原下轮行；v4.6.3 只留方向+数值/区间，不再写标题/日期/单位/约）：
     // 四格与标题行一个像素不动；无有效预测写「暂无预测」，绝不补数字。
-    const footDate = nextShow ? `${nextShow.getMonth() + 1}/${nextShow.getDate()}调` : "";
+    // v4.6.3：底行只写「方向 + 数值/区间」（无预测标题、无日期、无单位、无「约」），行高/宽度/位置不变。
     const footNode = {
       type: "stack", direction: "row", alignItems: "center", width: SW, height: FOOT_H, gap: 2,
       children: [
-        { type: "image", src: "sf-symbol:calendar", width: 9, height: 9, color: COLORS.tertiary },
-        { type: "text", text: "涨跌预测", flex: 1, font: { size: 9, weight: "semibold" }, textColor: COLORS.secondary, maxLines: 1, minScale: 0.7 },
-        { type: "text", text: fcText, font: { size: 9, weight: "semibold" }, textColor: fcColor, maxLines: 1, minScale: 0.55 },
-        ...(footDate ? [{ type: "text", text: footDate, font: { size: 8.5 }, textColor: COLORS.tertiary, maxLines: 1, minScale: 0.7 }] : []),
+        { type: "text", text: fcPlain, width: SW, font: { size: 10, weight: "semibold" }, textColor: fcColor, maxLines: 1, minScale: 0.6, textAlign: "center" },
       ],
     };
     return {
@@ -1248,8 +1247,8 @@ export default async function (ctx) {
   const colW_L = (contentW_L - 1 - 20) / 2;         // 两栏 + 1px 分隔 + 10×2 间距
 
   // 大号底栏（v4.6.0）：左块改为「涨跌预测」（原最近调价位置），副行保留下轮预计调价时间与最近调价幅度，
-  // 不再显示剩余天数；无有效预测写「暂无预测」。
-  const bigMainLabel = "涨跌预测（全国）";
+  // 不再显示剩余天数；无有效预测写「暂无预测」。标题 v4.6.3 只留「涨跌预测」，数值仍「约 + 元/升」。
+  const bigMainLabel = "涨跌预测";   // v4.6.3：去掉「（全国）」，其余不动
   const bigMainVal = fcValid ? (fcData.fc.dir === "flat" ? "搁浅" : `${fcAmt}${fcUnit ? " " + fcUnit : ""}`) : "暂无预测";
   const bigMainColor = fcValid ? fcColor : COLORS.secondary;
   // 大号预测值按 146.5pt（colW_L）预算取最大可容纳字号：区间「↓约0.28-0.33 元/升」比单值长
