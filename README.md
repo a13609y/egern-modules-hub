@@ -21,6 +21,7 @@ rules/              规则 / URL 重写 / MITM / http_response 类模块
 ├── pinterest/      Pinterest 去广告（信息流 / 搜索 / 相关推荐推广 Pin）
 ├── fanqie-adblock/ 番茄小说去广告（穿山甲 / 广告计费 / 章末视频，跟随上游）
 ├── pingme/         PingMe 签到 + 看视频奖励（拆成两条独立定时任务，可单独开关）
+├── china/          中国规则集（大陆域名 8,400+ / IPv4 6,200+ / IPv6 3,400+ 段，no_resolve: true，每天跟随上游）
 rulesets/           纯规则集（不含模块，直接给 rule_set 引用）
 ├── foreign-domains/ 国外域名规则集（26,000+ 条，每天更新）
 scripts/            独立脚本（抓包、签到、通知等）
@@ -42,7 +43,10 @@ docs/               说明与踩坑记录
 | [Pinterest 去广告](rules/pinterest/README.md) | 去 Pinterest 信息流、搜索、相关推荐里的推广 Pin，拦广告与点击追踪域名 | `https://raw.githubusercontent.com/a13609y/egern-modules-hub/main/rules/pinterest/pinterest.yaml` |
 | [番茄小说去广告](rules/fanqie-adblock/README.md) | 穿山甲 / 广告计费 / 广告素材 / 章末视频，域名表每天跟随上游聚合 | `https://raw.githubusercontent.com/a13609y/egern-modules-hub/main/rules/fanqie-adblock/fanqie-adblock.yaml` |
 | [PingMe 签到 + 看视频奖励](rules/pingme/README.md) | 签到（滚动签到小时 + 当天追赶制）与看视频得奖励拆成两条独立定时任务，各自 cron / 超时 / 开关，支持多账号 | `https://raw.githubusercontent.com/a13609y/egern-modules-hub/main/rules/pingme/pingme.yaml` |
+| [中国规则集](rules/china/README.md) | 大陆域名 8,421 条（后缀 8,339 / 精确 79 / 正则 3）+ IPv4 6,221 段 + IPv6 3,444 段，顶层 `no_resolve: true`（IP 规则不触发额外 DNS 解析）；纯规则集，命中走 `DIRECT` | `https://raw.githubusercontent.com/a13609y/egern-modules-hub/main/rules/china/china.yaml` |
 | [国外域名规则集](rulesets/foreign-domains/README.md) | 26,000+ 条国外域名（v2fly geolocation-!cn + Loyalsoldier proxy），已剔除中国域名；纯规则集，给 `rule_set` 引用 | `https://raw.githubusercontent.com/a13609y/egern-modules-hub/main/rulesets/foreign-domains/foreign-domains.yaml` |
+
+> 规则集摆放顺序：`rules/china`（中国直连）在前，`rulesets/foreign-domains`（国外代理）在后，两者有 151 条重叠（`bilibili.tv`、`alibabacloud.com.xx` 这类中国公司海外站），先匹配直连才不会误走代理。
 
 > 注：`lan-bypass`、`real-ip-domains`、`real-ip-domains-extra` 已合并为 **通用增强（合一版）**，旧订阅仍可用但不再更新。
 
