@@ -1,32 +1,24 @@
 /**
- * ⛽ 全国实时油价小组件 v4.5.1（Egern 模块版 · 中号右栏放大字号并按块高填满 / 消除中空；小号与大号返回树未动）
+ * ⛽ 全国实时油价小组件 v4.6.0（Egern 模块版 · 新增官方涨跌预测，中号右栏三块 / 小号与大号改预测位）
+ *
  * 现价源：http://m.qiyoujiage.com/（省份 / 城市页面）
  * 历史源：BesFuel（https://github.com/BensonLaur/BesFuel）已核实的发改委调价历史（元/升，真实节点）
- * 原作者：Egern 群友 tg://user?id=5122789128 · 二次修改 iBL3ND
- *
- * 模块参数（YAML env_schema 生成设置界面，兼容手写环境变量）
- * ─────────────────────────────────────────────────────────────
- * region        省份/城市，拼音（fujian、hainan/haikou）或中文（福建、海口、广东深圳）
- * SHOW_TREND    是否显示走势图 / 调价信息：true / false
- * REFRESH_HOURS 刷新间隔小时数 1~24，默认 6（系统调度是尽力而为，不保证精确）
- * FUEL          小号大数字 / 走势图 / 加满金额使用的油品：92 / 95 / 98 / 柴油，默认 95
- * FULL_LITERS   「加满」按多少升计算，默认 50
+ * 预测源：极数本源 全国油价 API（POST https://v1.apizero.cn/api/oil-price，文档 https://apizero.cn/aidocs/oil-price）
  *
  * 数据诚实性（不要造假数据）
  * ─────────────────────────────────────────────────────────────
- * - 「最近调价」的日期 / 方向 / 幅度来自站点页面 tishi 文本（真实）
- * - 「预计下轮窗口」= 最近调价日 + 10 个工作日（国内成品油调价规则推算，界面上标注「预计」）
- * - 走势图优先用 BesFuel 快照里逐期核实的官方调价历史（地区+油号一一对应，节点日期为价格执行/公告日，
- *   最多渲染最近 10 个真实节点，节点间用普通直线连接（只表示真实调价的价差趋势，不插值、不虚构调价），
- *   「不作调整」公告画成空心节点，历史缺口处断线不连；BesFuel 未收录的地区/油号不画曲线，
- *   只用本脚本真实抓到的价格快照兜底并明确标注「本地快照」，绝不推算、不复用邻近地区数据。
- * - 下一轮信息分三级，绝不把「只有窗口日期」说成「下轮幅度」：
- *   1) 公告/预测级：只有 BesFuel 快照 nationalAdjustment 里带真实金额或明确公告标记时才作为主信息，
- *      并强制标注来源与「预测/公告」；2) 仅窗口级：只有下轮日期（BesFuel 官方规则+放假推算，或本地
- *      10 个工作日推算）时，主信息回退为「最近调价」，下轮只写日期并注明「距日期/预计」；
- *   3) 窗口已过期：日期早于今天一律不再当「下轮」，显示「窗口待更新」。
- * - 站点（汽油价格网）与 BesFuel 快照 currently 都不提供可信的下一轮涨跌幅度（forecast 字段为空），
- *   故默认走第 2 级；本脚本不伪造预测，也不做无授权的复杂新源研究。
+ * - 「最近调价」的日期 / 方向 / 幅度来自站点页面 tishi 文本（真实），或 BesFuel 最新官方节点
+ * - 「涨跌预测」只来自文档写明的 data.forecast 文本（方向 + 元/升区间 / 元/吨），且必须同时满足：
+ *   预测窗口（data.next_adjustment 的月日）在未来、缓存不超过 15 天；任一不满足就显示「暂无预测」。
+ *   历史幅度、过期窗口、本地 10 工作日推算一律不进预测位，绝不把老数据/推算说成预测。
+ * - 「下轮预计调价时间」优先用文档 data.next_adjustment 的月/日（标「服务提示」）；无则回退
+ *   BesFuel 窗口或本地 10 工作日推算（标「预计」）；窗口已过期显示「待更新」。
+ * - 请求配额：文档写明未带 Key 每天 5 次 / QPS 2；本脚本自设北京时区每天最多 1 次请求，
+ *   失败也算一次、不即时重试，429（4029 QPS / 4030 额度）当天封停。三尺寸共用同一 storage
+ *   缓存与预算键；跨设备 / 跨进程无硬保证（Egern storage 无原子 CAS），读不到预算即故障关闭。
+ * - API Key 只放本机 Egern 模块参数（默认空），绝不写入仓库、日志或聊天内容。
+ * - 走势图优先用 BesFuel 快照里逐期核实的官方调价历史（最多 10 个真实节点，普通直线连接，
+ *   缺口断线、「不作调整」空心点）；未收录则不画曲线，只用本脚本真实抓到的价格快照兜底。
  */
 
 const PAD2 = (n) => String(n).padStart(2, "0");
@@ -604,7 +596,103 @@ export default async function (ctx) {
   }
 
   // ════════════════════════════════════════════════════════════
-  // 4. 派生数据（调价日期 / 下轮窗口 / 走势点）
+  // 3b. 官方涨跌预测（POST https://v1.apizero.cn/api/oil-price）
+  //     合约只按官方文档实现（未实机试调）：鉴权 Authorization: Bearer <API Key>（可选，
+  //     匿名每天 5 次 · QPS 2）；字段 data.update_date / data.prices[] / data.next_adjustment /
+  //     data.forecast；forecast 是自然语言文本，单位见文档示例「预计下调630元/吨(0.48元/升-0.57元/升)」。
+  //     配额：自设「北京时间每天最多 1 次」，失败也算一次、不即时重试，429 当天封停；
+  //     三尺寸共用同一 storage 键（缓存 + 预算）；读不到预算即故障关闭（不发请求，只用缓存）。
+  // ════════════════════════════════════════════════════════════
+  const FC_URL = "https://v1.apizero.cn/api/oil-price";
+  const FC_ON = !["false", "0", "no", "off", "hide", "隐藏"].includes(String(ctx.env.FORECAST ?? "true").trim().toLowerCase());
+  const OIL_KEY = String(ctx.env.OIL_API_KEY ?? "").trim();   // 只放本机 Egern 参数：不打印、不落盘、不进仓库
+  const FC_BUDGET = "oilprice_fc_budget_v1";                  // 三尺寸共享的请求预算（北京时间日界）
+  const FC_DATA = `oilprice_fc_v1_${cnProv || "none"}`;       // 三尺寸共享的预测缓存
+  const bjDay = (ms) => { const d = new Date(ms + 8 * 3600 * 1000); return `${d.getUTCFullYear()}-${PAD2(d.getUTCMonth() + 1)}-${PAD2(d.getUTCDate())}`; };
+
+  /** forecast 是文档里的自然语言文本：只认「方向 + 幅度」形态，解析不出就不当预测（绝不补数字） */
+  function fcParse(txt) {
+    const s = String(txt ?? "").replace(/\s+/g, "");
+    if (!s) return null;
+    const dir = /上调|上涨/.test(s) ? "up" : /下调|下跌/.test(s) ? "down" : /搁浅|不作调整|不调整|持平/.test(s) ? "flat" : "";
+    if (!dir) return null;
+    const grabs = (re) => [...s.matchAll(re)].map((m) => m[1]);
+    const perL = grabs(/([0-9][0-9.]*)元\/升/g);
+    const perT = grabs(/([0-9][0-9.]*)元(?:\/吨|每吨)/g);
+    let amt = "", unit = "";
+    if (perL.length >= 2) { amt = `${perL[0]}-${perL[1]}`; unit = "元/升"; }
+    else if (perL.length === 1) { amt = perL[0]; unit = "元/升"; }
+    else if (perT.length >= 2) { amt = `${perT[0]}-${perT[1]}`; unit = "元/吨"; }
+    else if (perT.length === 1) { amt = perT[0]; unit = "元/吨"; }
+    if (dir === "flat") return { dir, amt: "", unit: "" };
+    return amt ? { dir, amt, unit } : null;
+  }
+
+  /** next_adjustment 形如「下次油价7月3日24时调整」：只认真实写出的月/日，不推算 */
+  function fcNextDate(txt, base) {
+    const m = String(txt ?? "").match(/(\d{1,2})月(\d{1,2})日/);
+    if (!m) return null;
+    const d = new Date(base.getFullYear(), +m[1] - 1, +m[2]);
+    if (d.getTime() < base.getTime() - 30 * 86400000) d.setFullYear(base.getFullYear() + 1);   // 跨年提示
+    return isNaN(d.getTime()) ? null : d;
+  }
+
+  let fcData = null, fcState = "", fcNote = "";
+  if (FC_ON && cnProv && !regionInvalid) {
+    try { fcData = ctx.storage.getJSON(FC_DATA); } catch (_) { fcData = null; }
+    const todayBJ = bjDay(Date.now());
+    let budget = null, budgetOk = true;
+    try { budget = ctx.storage.getJSON(FC_BUDGET); } catch (_) { budgetOk = false; }
+    const saveBudget = (state, code) => {
+      try { ctx.storage.setJSON(FC_BUDGET, { day: todayBJ, state, code: code || 0, at: new Date().toISOString() }); } catch (_) {}
+    };
+    if (!budgetOk) {
+      fcState = "no-budget";                       // 故障关闭：读不到预算就不发请求
+    } else if (budget && budget.day === todayBJ) {
+      fcState = String(budget.state || "used");    // 今天已请求过（成功/失败都算），不重试
+    } else {
+      saveBudget("reserved", 0);                   // 先落预算再发请求：中途失败也算今天已用
+      let resp = null, body = null, status = 0;
+      try {
+        const headers = { "content-type": "application/json", accept: "application/json", "user-agent": "EgernOilWidget/4.6" };
+        if (OIL_KEY) headers.authorization = `Bearer ${OIL_KEY}`;
+        resp = await ctx.http.post(FC_URL, { headers, body: { province: cnProv }, timeout: 8000 });
+        status = resp ? resp.status : 0;
+        if (status !== 429) { try { body = await resp.json(); } catch (_) { body = null; } }
+      } catch (e) {
+        fcNote = (e && e.message) || "网络错误";
+      }
+      const code = body && typeof body.code === "number" ? body.code : -1;
+      const quota = status === 429 || code === 4029 || code === 4030;
+      const auth = code === 4011 || code === 4013 || code === 4014 || code === 4015;
+      if (quota) { fcState = "quota"; saveBudget("quota", code); }
+      else if (auth) { fcState = "auth"; saveBudget("auth", code); }
+      else if (code === 0 && body && body.data && typeof body.data === "object") {
+        const d = body.data;
+        const nd = fcNextDate(d.next_adjustment, now);
+        const rec = {
+          day: todayBJ, fetchedAt: Date.now(),
+          updateDate: String(d.update_date || "").slice(0, 10),
+          province: String(d.province || cnProv),
+          forecastText: String(d.forecast || ""),
+          nextText: String(d.next_adjustment || ""),
+          fc: fcParse(d.forecast),
+          nextDate: nd ? YMD(nd) : "",
+        };
+        try { ctx.storage.setJSON(FC_DATA, rec); } catch (_) {}
+        fcData = rec;
+        fcState = rec.fc || rec.nextDate ? "ok" : "empty";
+        saveBudget(rec.fc || rec.nextDate ? "ok" : "fail", 0);
+      } else {
+        fcState = "fail";
+        saveBudget("fail", code);
+        if (!fcNote) fcNote = `HTTP ${status}${code >= 0 ? ` · code ${code}` : ""}`;
+      }
+    }
+  }
+
+  // ════════════════════════════════════════════════════════════
+  // 4. 派生数据（最近调价 / 涨跌预测 / 下轮时间 / 走势点）
   // ════════════════════════════════════════════════════════════
   let adjDate = null;
   if (adj) {
@@ -612,48 +700,38 @@ export default async function (ctx) {
     if (adjDate.getTime() - now.getTime() > 45 * 86400000) adjDate.setFullYear(now.getFullYear() - 1); // 跨年
   }
   // 下轮日期只认「未来」：日期早于今天的一律不再当下一轮（否则会把过去错当下一轮）
-  let nextDate = null, daysLeft = null, nextSource = "local", nextStale = false;
   const today0 = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  let nextDate = null, nextSource = "local", nextStale = false;
   const bfNextD = bf && /^\d{4}-\d{2}-\d{2}$/.test(bf.nextDate || "") ? new Date(`${bf.nextDate}T00:00:00`) : null;
   if (bfNextD && !isNaN(bfNextD.getTime()) && bfNextD.getTime() >= today0.getTime()) {
     nextDate = bfNextD;
-    nextSource = "besfuel";                 // BesFuel 快照里的官方规则+放假安排推算窗口
+    nextSource = "besfuel";
   } else {
     if (bfNextD && !isNaN(bfNextD.getTime())) nextStale = true;   // 快照里的窗口已过期
     if (adjDate) {
-      const local = addWorkdays(adjDate, 10);  // 退回本地规则推算（标注「预计」）
+      const local = addWorkdays(adjDate, 10);  // 退回本地规则推算（只用于「时间」，不用于幅度）
       if (local.getTime() >= today0.getTime()) nextDate = local;
       else nextStale = true;
     }
   }
 
-  // ── 下轮信息分级（绝不把「只有日期」说成「下轮涨跌幅」）────────────
-  // forecast：快照里真有下轮金额 → 主信息显示幅度，并强制标注「预测」与来源
-  // window  ：只有日期（BesFuel 官方规则+放假推算，或本地 10 工作日推算）→ 主信息仍是最近调价，
-  //           下轮只写日期并注明「距日期/预计」；公告级（有公告来源）则标「公告」
-  // none    ：窗口已过期或完全无数据 → 主信息为最近调价，下轮显示「待更新」
-  const fc = bf && bf.fc ? bf.fc : null;
-  const fcD = fc && fc.window ? new Date(`${fc.window}T00:00:00`) : null;
-  const fcOk = !!(fc && fcD && !isNaN(fcD.getTime()) && fcD.getTime() >= today0.getTime());
-  const nextIsAnn = !!(bf && bf.nextDate) && !/预计|推算|规则|放假/.test(`${bf.nextLabel} ${bf.nextSrc}`);
-  const nextInfo = fcOk
-    ? { kind: "forecast", badge: "预测", date: fcD, dir: fc.dir, amt: fc.amt, src: fc.src }
-    : nextDate
-      ? { kind: "window", badge: nextIsAnn ? "公告" : "预计", date: nextDate, dir: "", amt: null, src: nextSource }
-      : { kind: "none", badge: "", date: null, dir: "", amt: null, src: "" };
-  if (nextInfo.date) {
-    daysLeft = Math.round((new Date(nextInfo.date.getFullYear(), nextInfo.date.getMonth(), nextInfo.date.getDate()).getTime()
-      - today0.getTime()) / 86400000);
-  }
-  const nextAmtTxt = nextInfo.kind === "forecast"
-    ? `${nextInfo.dir === "up" ? "↑" : nextInfo.dir === "down" ? "↓" : "→"}${nextInfo.amt.toFixed(2)}`
-    : "";
-  const nextAmtFull = nextInfo.kind === "forecast" ? `${nextAmtTxt} 元/升` : "";
-  const nextAmtColor = nextInfo.kind === "forecast"
-    ? (nextInfo.dir === "up" ? COLORS.up : nextInfo.dir === "down" ? COLORS.down : COLORS.secondary)
-    : COLORS.secondary;
-  const nextDateTxt = nextInfo.date ? MD(nextInfo.date) : "";
-  const nextDaysTxt = nextInfo.date ? (daysLeft >= 0 ? `${daysLeft} 天` : "待更新") : "待更新";
+  // 涨跌预测只认：文档 forecast + 未来预测窗口 + 15 天内缓存。三者缺一 → 暂无预测
+  const FC_FRESH_MS = 15 * 86400000;
+  const fcNextD = fcData && /^\d{4}-\d{2}-\d{2}$/.test(fcData.nextDate || "") ? new Date(`${fcData.nextDate}T00:00:00`) : null;
+  const fcWindowOk = !!(fcNextD && !isNaN(fcNextD.getTime()) && fcNextD.getTime() >= today0.getTime());
+  const fcValid = !!(fcData && fcData.fc && fcWindowOk && (Date.now() - (fcData.fetchedAt || 0)) <= FC_FRESH_MS);
+  const fcArrow = !fcValid ? "" : fcData.fc.dir === "up" ? "↑" : fcData.fc.dir === "down" ? "↓" : "→";
+  const fcAmt = fcValid ? (fcData.fc.dir === "flat" ? "搁浅" : `${fcArrow}${fcData.fc.amt}`) : "";
+  const fcUnit = fcValid ? fcData.fc.unit || "" : "";
+  const fcColor = !fcValid ? COLORS.secondary : fcData.fc.dir === "up" ? COLORS.up : fcData.fc.dir === "down" ? COLORS.down : COLORS.secondary;
+  const fcText = fcValid ? fcAmt : "暂无预测";                 // 缺有效数据 → 暂无预测（不冒充）
+
+  // 下轮预计调价时间：优先文档 next_adjustment（服务提示），否则回退已有窗口并标「预计」
+  const apiNext = fcWindowOk;
+  const nextShow = apiNext ? fcNextD : nextDate;
+  const api24 = apiNext && /24时|24:00/.test(String((fcData && fcData.nextText) || ""));
+  const nextTimeTxt = nextShow ? `${MDs(nextShow)}${apiNext ? (api24 ? " 24时" : "") : " 24时"}` : "待更新";
+  const nextNote = apiNext ? "服务提示" : nextDate ? "本地预计" : nextStale ? "窗口已过" : "暂无窗口";
 
   const allRows = [
     { key: "p92", label: "92号", price: prices.p92, color: COLORS.p92 },
@@ -785,63 +863,51 @@ export default async function (ctx) {
     };
   }
 
-  // 中号右栏：两块（上＝最近调价 / 下＝下轮），块高与左栏严格对齐——
-  // 上块 46（= 四卡行高）：标题 10 / 数值 14.5 / 副行 9.5 + 1pt 行距 → 13+1+19+1+12 = 46，
-  //   内容自然高正好撑满块高，与卡片标签/价格同一条中轴（不再靠 spacer 居中留出上下空档）。
-  // 下块 66（= 图表高）：分隔线贴块首（与左栏「卡行/图表」分界同一条线）+ 5/4/4/5 节奏排布
-  //   11 / 16 / 10 → 1+5+14+4+20+4+13+5 = 66，末行压到图表底部日期区基线，块内不再有 20pt 中空。
-  // 主信息优先下轮：有真实幅度才显示下轮幅度，否则主信息为最近调价，下轮只写日期并明确标注
-  // 「距日期」。整体次要字号 ≤16（仍小于油价 18pt）与弱化颜色。
-  function adjBlockM(o) {
+  // 中号右栏三块（v4.6.0）：上＝最近调价（46 = 四卡行高）/ 中＝涨跌预测（32）/ 下＝下轮预计调价时间（30），
+  //   块间 4pt，合计 46+4+32+4+30 = 116 = 左栏（卡行 46 + 4 + 图 66）；三块都按自然高排满，块内不留中空。
+  //   预测只认文档 forecast（未来窗口 + 15 天内缓存），缺失/过期写「暂无预测」；不显示剩余天数。
+  const adjBlockM = (o) => {
     const w = o.w;
-    const fcOn = nextInfo.kind === "forecast";
-    const annOn = nextInfo.kind === "window" && nextInfo.badge === "公告";
-    // 公告级（有日期无金额）不能让最近调价的幅度顶到「下轮公告」名下
-    const mainLabel = fcOn ? "下轮预测" : "最近调价";
-    const mainVal = fcOn ? nextAmtFull : adjTxt;
-    const mainColor = fcOn ? nextAmtColor : adjColor;
-    const mainSub = fcOn
-      ? `${nextDateTxt} 执行 · 预测`
-      : adjDate ? `${MD(adjDate)} 24时` : "日期暂无数据";
-    const secondLabel = fcOn ? "最近调价" : annOn ? "下轮公告" : "下轮预计";
-    const secondVal = fcOn ? adjTxt : nextInfo.date ? nextDateTxt : "待更新";
-    const secondSub = fcOn
-      ? (adjDate ? `${MD(adjDate)} 24时` : "—")
-      : nextInfo.date
-        ? `${annOn ? "公告日" : "距日期"} · ${nextDaysTxt}`
-        : nextStale ? "窗口已过" : "暂无窗口";
-    const textW = (x) => ({ type: "text", text: x.text, width: w, font: x.font, textColor: x.textColor, maxLines: 1, minScale: x.minScale });
+    const T = (s, size, color, weight, minScale) => ({
+      type: "text", text: s, width: w, font: { size, ...(weight ? { weight } : {}) },
+      textColor: color, maxLines: 1, minScale,
+    });
     return {
-      // 参考图右栏：标签弱化 + 关注值加粗放大（仍小于油价 18pt），分隔线贴下块首
-      // （与左栏「四卡行/图表」分界同一条线），下块三行按 5pt 节奏排到底，末行贴图表底部日期基线
-      type: "stack", direction: "column", alignItems: "start", width: w, gap: o.gap,
+      type: "stack", direction: "column", alignItems: "start", width: w, gap: 4,
       children: [
         {
-          // 上块：13(10pt) + 1 + 19(15pt) + 1 + 12(9.5pt) = 46 = 四卡行高（无上下空档）
+          // 上块 46：13(10pt) + 1 + 19(14.5pt) + 1 + 12(9.5pt) = 46 = 四卡行高
           type: "stack", direction: "column", alignItems: "start", width: w, height: o.topH, gap: 1,
           children: [
-            textW({ text: mainLabel, font: { size: 10 }, textColor: COLORS.tertiary, minScale: 0.8 }),
-            textW({ text: mainVal, font: { size: 14.5, weight: "bold" }, textColor: mainColor, minScale: 0.75 }),
-            textW({ text: mainSub, font: { size: 9.5 }, textColor: COLORS.secondary, minScale: 0.7 }),
+            T("最近调价", 10, COLORS.tertiary, "", 0.8),
+            T(adjTxt, 14.5, adjColor, "bold", 0.7),
+            T(adjDate ? `${MD(adjDate)} 24时` : "日期暂无数据", 9.5, COLORS.secondary, "", 0.7),
           ],
         },
         {
-          // 下块：1 + 5 + 14(11pt) + 4 + 20(16pt) + 4 + 13(10pt) + 5 = 66 = 图表高
-          type: "stack", direction: "column", alignItems: "start", width: w, height: o.botH, gap: 0,
+          // 中块 32：分隔线贴块首 1 + 1 + 12(9pt) + 17(13pt) + 1
+          type: "stack", direction: "column", alignItems: "start", width: w, height: o.fcH, gap: 0,
           children: [
             { type: "stack", height: 1, width: w - 10, backgroundColor: COLORS.cardBorder, children: [{ type: "spacer" }] },
-            { type: "spacer", length: 5 },
-            textW({ text: secondLabel, font: { size: 11 }, textColor: COLORS.tertiary, minScale: 0.8 }),
-            { type: "spacer", length: 4 },
-            textW({ text: secondVal, font: { size: 16, weight: "semibold" }, textColor: COLORS.secondary, minScale: 0.7 }),
-            { type: "spacer", length: 4 },
-            textW({ text: secondSub, font: { size: 10 }, textColor: COLORS.tertiary, minScale: 0.7 }),
-            { type: "spacer", length: 5 },
+            { type: "spacer", length: 1 },
+            T(fcValid && fcUnit ? `涨跌预测（${fcUnit}）` : "涨跌预测", 9, COLORS.tertiary, "", 0.7),
+            T(fcText, 13, fcColor, "bold", 0.6),
+            { type: "spacer", length: 1 },
+          ],
+        },
+        {
+          // 下块 30：分隔线 1 + 1 + 12(9pt) + 16(12.5pt)
+          type: "stack", direction: "column", alignItems: "start", width: w, height: o.nextH, gap: 0,
+          children: [
+            { type: "stack", height: 1, width: w - 10, backgroundColor: COLORS.cardBorder, children: [{ type: "spacer" }] },
+            { type: "spacer", length: 1 },
+            T("下轮预计调价时间", 9, COLORS.tertiary, "", 0.7),
+            T(nextTimeTxt, 12.5, COLORS.secondary, "semibold", 0.7),
           ],
         },
       ],
     };
-  }
+  };
 
   function emptyNode(msg, size, w) {
     return {
@@ -893,21 +959,16 @@ export default async function (ctx) {
       type: "stack", direction: "row", alignItems: "center", width: SW, height: CELL_H, gap: GAP,
       children: [cell(a), cell(b)],
     });
-    // 底部下轮调价行：左＝下轮级别（预测/预计/公告）+ 日期，右＝距该日期的天数（保留「预计」语义，
-    // 不把日期当涨跌幅）。仅窗口时右栏写「距日期 · N 天」，窗口过期写「窗口已过」。
-    const footLabel = nextInfo.kind === "forecast"
-      ? "下轮预测"
-      : nextInfo.kind === "window" ? (nextInfo.badge === "公告" ? "下轮公告" : "下轮预计") : "下轮调价";
-    const footDate = nextInfo.date ? `${nextInfo.date.getMonth() + 1}/${nextInfo.date.getDate()}` : "";
-    const footTail = nextInfo.kind === "forecast"
-      ? `${nextAmtTxt} 元/升`
-      : nextInfo.date ? `距日期 · ${nextDaysTxt}` : nextStale ? "窗口已过" : "暂无窗口";
+    // 底部行（v4.6.0）：涨跌预测替代原下轮行，只在有可行下轮日期时紧凑保留日期（7/3 调），
+    // 四格与标题行一个像素不动；无有效预测写「暂无预测」，绝不补数字。
+    const footDate = nextShow ? `${nextShow.getMonth() + 1}/${nextShow.getDate()}调` : "";
     const footNode = {
       type: "stack", direction: "row", alignItems: "center", width: SW, height: FOOT_H, gap: 3,
       children: [
         { type: "image", src: "sf-symbol:calendar", width: 9, height: 9, color: COLORS.tertiary },
-        { type: "text", text: `${footLabel} ${footDate}`.replace(/\s+$/, ""), flex: 1, font: { size: 9, weight: "semibold" }, textColor: COLORS.secondary, maxLines: 1, minScale: 0.7 },
-        { type: "text", text: footTail, font: { size: 8.5 }, textColor: COLORS.tertiary, maxLines: 1, minScale: 0.7 },
+        { type: "text", text: "涨跌预测", flex: 1, font: { size: 9, weight: "semibold" }, textColor: COLORS.secondary, maxLines: 1, minScale: 0.7 },
+        { type: "text", text: fcValid && fcUnit && fcUnit !== "元/升" ? `${fcText} ${fcUnit}` : fcText, font: { size: 8.5, weight: "semibold" }, textColor: fcColor, maxLines: 1, minScale: 0.6 },
+        ...(footDate ? [{ type: "text", text: footDate, font: { size: 8.5 }, textColor: COLORS.tertiary, maxLines: 1, minScale: 0.7 }] : []),
       ],
     };
     return {
@@ -1019,7 +1080,7 @@ export default async function (ctx) {
                   ],
                 },
                 vDivider(CARD_H_M + BODY_GAP_M + CHART_H_M - 4),
-                adjBlockM({ w: RIGHT_W, gap: BODY_GAP_M, topH: CARD_H_M, botH: CHART_H_M }),
+                adjBlockM({ w: RIGHT_W, topH: CARD_H_M, fcH: 32, nextH: 30 }),
               ],
             }
           : emptyNode(errText, 12, contentW),
@@ -1058,24 +1119,18 @@ export default async function (ctx) {
     : null;
   const colW_L = (contentW_L - 1 - 20) / 2;         // 两栏 + 1px 分隔 + 10×2 间距
 
-  // 大号底栏调价块：主信息优先下轮——只有真实幅度（预测）或公告才占主位，且明确标注；
-  // 只有窗口日期时主信息仍是「最近调价」，下轮日期在副行注明「预计/公告」。
-  const bigFcOn = nextInfo.kind === "forecast";
-  const bigAnnOn = nextInfo.kind === "window" && nextInfo.badge === "公告";
-  const bigMainLabel = bigFcOn ? "下轮预测（全国）" : "最近调价（全国）";
-  const bigMainVal = bigFcOn ? nextAmtTxt : adjTxt;
-  const bigMainColor = bigFcOn ? nextAmtColor : adjColor;
+  // 大号底栏（v4.6.0）：左块改为「涨跌预测」（原最近调价位置），副行保留下轮预计调价时间与最近调价幅度，
+  // 不再显示剩余天数；无有效预测写「暂无预测」。
+  const bigMainLabel = "涨跌预测（全国）";
+  const bigMainVal = fcValid ? (fcData.fc.dir === "flat" ? "搁浅" : `${fcAmt}${fcUnit ? " " + fcUnit : ""}`) : "暂无预测";
+  const bigMainColor = fcValid ? fcColor : COLORS.secondary;
   const adjShort = adj && adj.range
     ? `${adj.dir === "down" ? "↓" : adj.dir === "up" ? "↑" : "→"}${String(adj.range).split("-")[0]}`
     : "";
-  // 大号底部左栏只有 146.5pt：副行必须能按原字号放下（不加「距 N 天」，否则会压到右栏「单价」）
-  const bigSub = bigFcOn
-    ? `${nextDateTxt} 执行 · ${adjShort ? `最近 ${adjShort}` : "预测"}`
-    : nextInfo.date
-      ? `${adjDate ? MDs(adjDate) : "—"} 24时 · 下轮 ${nextInfo.date ? MDs(nextInfo.date) : "—"}${bigAnnOn ? " 公告" : " 预计"}`
-      : nextStale
-        ? `${adjDate ? MD(adjDate) : "—"} 24时 · 下轮窗口待更新`
-        : (adjDate ? `${MD(adjDate)} 24时` : "日期暂无数据");
+  // 大号底部左栏只有 146.5pt：一行放「下轮时间 + 最近调价」，原字号放得下，不加「距 N 天」
+  const bigSub = nextShow
+    ? `${MDs(nextShow)} 24时 ${apiNext ? "提示" : "预计"}${adjShort ? ` · 最近 ${adjShort}` : ""}`
+    : adjDate ? `最近 ${adjShort || "—"} · ${MDs(adjDate)} 24时` : "下轮时间待更新";
 
   return {
     type: "widget",
