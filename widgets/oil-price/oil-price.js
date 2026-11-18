@@ -1,5 +1,5 @@
 /**
- * ⛽ 全国实时油价小组件 v4.6.1（Egern 模块版 · 预测统一元/升 + 吨价换算估算 / 中号右栏三块严格等高）
+ * ⛽ 全国实时油价小组件 v4.6.2（Egern 模块版 · 预测统一元/升 + 四油品区间（汽油/柴油密度换算）/ 中号右栏三块 36pt 铺满）
  *
  * 现价源：http://m.qiyoujiage.com/（省份 / 城市页面）
  * 历史源：BesFuel（https://github.com/BensonLaur/BesFuel）已核实的发改委调价历史（元/升，真实节点）
@@ -8,7 +8,8 @@
  * 数据诚实性（不要造假数据）
  * ─────────────────────────────────────────────────────────────
  * - 「最近调价」的日期 / 方向 / 幅度来自站点页面 tishi 文本（真实），或 BesFuel 最新官方节点
- * - 「涨跌预测」只来自文档写明的 data.forecast 文本（方向 + 元/升区间 / 元/吨），且必须同时满足：
+ * - 「涨跌预测」只来自文档写明的 data.forecast 文本（方向 + 元/升区间 / 元/吨；只有统一吨价时按
+ *   汽油 0.725 kg/L、柴油 0.835 kg/L 换算成四油品元/升区间并标「约」，不编造 92/95/98 标号差异），且必须同时满足：
  *   预测窗口（data.next_adjustment 的月日）在未来、缓存不超过 15 天；任一不满足就显示「暂无预测」。
  *   历史幅度、过期窗口、本地 10 工作日推算一律不进预测位，绝不把老数据/推算说成预测。
  * - 「下轮预计调价时间」优先用文档 data.next_adjustment 的月/日（标「服务提示」）；无则回退
@@ -610,66 +611,142 @@ export default async function (ctx) {
   const FC_DATA = `oilprice_fc_v1_${cnProv || "none"}`;       // 三尺寸共享的预测缓存
   const bjDay = (ms) => { const d = new Date(ms + 8 * 3600 * 1000); return `${d.getUTCFullYear()}-${PAD2(d.getUTCMonth() + 1)}-${PAD2(d.getUTCDate())}`; };
 
-  // ── 单位归一（v4.6.1）：三尺寸预测统一「元/升」，与「最近调价」同单位 ─────────────
-  //  文档 forecast 可能是「元/升」区间，也可能只给「元/吨」。只给吨价时按汽油密度换算，标「约」=估算：
-  //    汽油 20℃ 密度 0.725 kg/L（GB 17930 车用汽油 0.720–0.775 的常用折算值）
-  //    → 1 吨 = 1000 / 0.725 ≈ 1379.31 升 → 元/升 = 元/吨 ÷ 1379.31
-  //  柴油备用口径：0.835 kg/L → 1 吨 ≈ 1197.6 升（forecast 是汽油口径，当前不走这条）
-  const LPT_GAS = 1379.31, LPT_DIESEL = 1197.6;
+  // ── 单位归一 + 四油品区间（v4.6.2）：三尺寸预测统一「元/升」区间，与「最近调价」同单位 ────────
+  //  文档 forecast 可能是「元/升」区间，也可能只给「元/吨」。只给吨价时按公开密度换算并标「约」=估算：
+  //    汽油 92/95/98 共用 0.725 kg/L（GB 17930 车用汽油 20℃ 密度 0.720–0.775 的常用折算值）
+  //      → 1 吨 = 1000 / 0.725 ≈ 1379.31 升
+  //    柴油 0.835 kg/L → 1 吨 = 1000 / 0.835 ≈ 1197.60 升
+  //  实测接口只给一个统一吨价（「预计下调油价390元/吨」，无分油号数据）→ 汽油、柴油各按自己密度换算：
+  //    390 / 1379.31 ≈ 0.28（92/95/98 同值，绝不编造三个标号的细微差异）、390 / 1197.60 ≈ 0.33（柴油）
+  //    → 四油品合成区间「↓约0.28-0.33」；换算后同值（如幅度极小）就不强做区间，仍显示单值。
+  //  若 forecast 文本或接口行真给出分油品吨价（确证的分油号数据），逐油品换算后取最小–最大。
+  const FC_VERSION = 4;
+  const DENS = { gas: 0.725, diesel: 0.835 };
+  const LPT_GAS = 1000 / DENS.gas, LPT_DIESEL = 1000 / DENS.diesel;   // ≈1379.31 / ≈1197.60
   const two = (n) => (Math.round(n * 100) / 100).toFixed(2);
+  const isDiesel = (x) => /diesel|柴油/i.test(String((x && (x.type || x.name)) || ""));
+  const lptOf = (x) => (isDiesel(x) ? LPT_DIESEL : LPT_GAS);
 
-  /** forecast 自然语言 → { dir, amt, unit:"元/升", est }
-   *  优先级：明示「元/升」区间（0.48-0.57元/升 / 0.48元/升-0.57元/升 / 0.48至0.57元/升 / 每升0.48-0.57元）
-   *  → 明示「元/升」单值 → 「分」（每升 5 分 = 0.05 元/升）→ 只有「元/吨」才换算成元/升并 est=true。
-   *  解析不出或换算后 ≤0.00 → null（预测位写「暂无预测」，绝不把吨价原样显示、绝不补数字）。 */
-  function fcParse(txt) {
+  /** 吨价候选 → 元/升（按油品密度，est=true 标「约」）。去重后只剩一个值 → 单值（同值不强做区间）。 */
+  function fcFromTons(list, dir) {
+    const vals = [];
+    for (const it of list) {
+      const ton = Math.abs(Number(it && it.ton));
+      if (!isFinite(ton) || ton <= 0) continue;
+      const v = ton / lptOf(it);
+      if (v >= 0.005) vals.push(+two(v));
+    }
+    const uniq = [...new Set(vals)].sort((a, b) => a - b);
+    if (!uniq.length) return null;
+    const lo = uniq[0], hi = uniq[uniq.length - 1];
+    return { dir, amt: lo === hi ? two(lo) : `${two(lo)}-${two(hi)}`, unit: "元/升", est: true, basis: "ton", lo, hi, spread: lo !== hi };
+  }
+
+  /** 统一吨价（接口没说汽油/柴油）→ 汽油 + 柴油各按自己密度换算，合成四油品区间。 */
+  function tonPair(tons) {
+    const out = [];
+    for (const t of tons) { out.push({ ton: t, type: "gasoline_92" }); out.push({ ton: t, type: "diesel_0" }); }
+    return out;
+  }
+
+  /** 接口若真的给出分油品吨价（确证分油号数据，≥2 条）→ [{ton,type}]；否则 null（不猜、不补） */
+  function perGradeTons(d) {
+    const out = [];
+    const arr = d && Array.isArray(d.prices) ? d.prices : [];
+    for (const p of arr) {
+      const n = p ? (p.change_per_ton ?? p.changePerTon ?? p.ton_change) : null;
+      if (typeof n === "number" && isFinite(n) && n !== 0) out.push({ ton: Math.abs(n), type: String(p.type || p.name || "") });
+    }
+    const map = d ? (d.change_per_ton || d.ton_changes) : null;
+    if (map && typeof map === "object") for (const k of Object.keys(map)) {
+      const n = map[k];
+      if (typeof n === "number" && isFinite(n) && n !== 0) out.push({ ton: Math.abs(n), type: k });
+    }
+    return out.length >= 2 ? out : null;
+  }
+
+  /** forecast 自然语言 → { dir, amt, unit:"元/升", est, basis, lo, hi }
+   *  优先级：⓪ 确证分油品吨价（接口行）→ ① 明示「元/升」区间 → ② 明示「元/升」单值 → ③「分」
+   *  → ④ 文本里分汽/柴油吨价 → ⑤ 统一吨价按汽油 0.725 + 柴油 0.835 两头换算成区间（est=true，标「约」）。
+   *  解析不出或换算后 ≤0.00 → null（预测位写「暂无预测」，绝不显示吨价、绝不补数字）。 */
+  function fcParse(txt, gradeTons) {
     const s = String(txt ?? "").replace(/\s+/g, "");
     if (!s) return null;
     const dir = /上调|上涨/.test(s) ? "up" : /下调|下跌/.test(s) ? "down" : /搁浅|不作调整|不调整|持平/.test(s) ? "flat" : "";
     if (!dir) return null;
-    if (dir === "flat") return { dir, amt: "", unit: "元/升", est: false };
+    if (dir === "flat") return { dir, amt: "", unit: "元/升", est: false, basis: "flat" };
+    if (Array.isArray(gradeTons) && gradeTons.length) {            // ⓪ 确证分油号吨价优先
+      const r = fcFromTons(gradeTons, dir);
+      if (r) return r;
+    }
     const N = "([0-9]+(?:\\.[0-9]+)?)";
     const DASH = "(?:-|~|—|至|到)";
-    // 1) 元/升区间（单位可能只写在后面、也可能两边都写）
+    // ① 元/升区间（单位可能只写在后面、也可能两边都写）
     let m = s.match(new RegExp(`${N}(?:元\\/升)?${DASH}${N}元\\/升`)) || s.match(new RegExp(`每升${N}${DASH}${N}元`));
-    if (m) return { dir, amt: `${two(+m[1])}-${two(+m[2])}`, unit: "元/升", est: false };
-    // 2) 元/升单值
+    if (m) {
+      const a = +m[1], b = +m[2];
+      if (a >= 0.005 && b >= 0.005) {
+        const lo = Math.min(a, b), hi = Math.max(a, b);
+        return lo === hi
+          ? { dir, amt: two(lo), unit: "元/升", est: false, basis: "litre", lo, hi: lo }
+          : { dir, amt: `${two(lo)}-${two(hi)}`, unit: "元/升", est: false, basis: "litre", lo, hi };
+      }
+    }
+    // ② 元/升单值
     m = s.match(new RegExp(`${N}元\\/升`)) || s.match(new RegExp(`每升${N}元`));
-    if (m) return { dir, amt: two(+m[1]), unit: "元/升", est: false };
-    // 3) 「分」口径：1 分 = 0.01 元/升
+    if (m && +m[1] >= 0.005) return { dir, amt: two(+m[1]), unit: "元/升", est: false, basis: "litre", lo: +m[1], hi: +m[1] };
+    // ③ 「分」口径：1 分 = 0.01 元/升
     m = s.match(new RegExp(`${N}分(?:钱)?(?:\\/升|每升)?`));
-    if (m) { const v = +m[1] / 100; if (v >= 0.005) return { dir, amt: two(v), unit: "元/升", est: false, basis: "fen" }; }
-    // 4) 只有元/吨 → 汽油吨升换算（估算）
+    if (m) { const v = +m[1] / 100; if (v >= 0.005) return { dir, amt: two(v), unit: "元/升", est: false, basis: "fen", lo: v, hi: v }; }
+    // ④ 文本写明分汽/柴油吨价 → 各自密度换算；统一吨价放进 flatT 走 ⑤
+    const gasT = [], dieT = [], flatT = [];
+    for (const seg of s.split(/[，,、；;。]/)) {
+      for (const x of seg.matchAll(new RegExp(`${N}元(?:\\/吨|每吨)`, "g"))) {
+        const t = +x[1];
+        if (!(t > 0)) continue;
+        const g = /汽油|92号|95号|98号/.test(seg), dd = /柴油/.test(seg);
+        if (g && !dd) gasT.push(t); else if (dd && !g) dieT.push(t); else flatT.push(t);
+      }
+    }
+    if (gasT.length || dieT.length) {
+      const list = [];
+      for (const t of gasT) list.push({ ton: t, type: "gasoline_92" });
+      for (const t of dieT) list.push({ ton: t, type: "diesel_0" });
+      const r = fcFromTons(list, dir);
+      if (r) return r;
+    }
+    // ⑤ 统一吨价（没说汽油/柴油）→ 汽油 + 柴油 两头 → 四油品区间（标「约」）
+    if (flatT.length) return fcFromTons(tonPair(flatT), dir);
+    // ⑥ 兜底：任意「X元/吨」写法（含区间）
     m = s.match(new RegExp(`${N}(?:元(?:\\/吨|每吨))?${DASH}${N}元(?:\\/吨|每吨)`));
     if (m) {
-      const a = +m[1] / LPT_GAS, b = +m[2] / LPT_GAS;
-      if (a >= 0.005 && b >= 0.005) return { dir, amt: `${two(a)}-${two(b)}`, unit: "元/升", est: true, basis: "ton" };
+      const r = fcFromTons(tonPair([+m[1], +m[2]]), dir);
+      if (r) return r;
     }
     m = s.match(new RegExp(`${N}元(?:\\/吨|每吨)`)) || s.match(new RegExp(`每吨${N}元`));
-    if (m) {
-      const v = +m[1] / LPT_GAS;
-      if (v >= 0.005) return { dir, amt: two(v), unit: "元/升", est: true, basis: "ton" };
-    }
+    if (m) return fcFromTons(tonPair([+m[1]]), dir);
     return null;
   }
 
-  /** 旧缓存兼容（v4.6.0 可能已把吨价原样存进 fc.unit=元/吨）：读出来统一归一成元/升，只改 FC_DATA，
-   *  绝不碰 FC_BUDGET —— 同日预算原样保留，不会因为归一而多发一次请求。 */
+  /** 旧缓存兼容（v4.6.0/4.6.1 可能把吨价原样存进 fc.unit=元/吨，或只存了汽油单值）：
+   *  · API 原文（forecastText）里还有原始吨价 → 能按新口径（汽油 + 柴油）恢复区间，才升级成区间；
+   *  · 只有当时换算出的单值、没有原始吨价 → 保留该单值（不反推「伪区间 / 伪精度」），等正常刷新；
+   *  · 只写 FC_DATA，绝不碰 FC_BUDGET —— 同日预算原样保留，不会因为归一而多发一次请求。 */
   function fcCompat(rec) {
-    if (!rec || typeof rec !== "object" || rec.fcv === 3) return rec;
-    let fc = fcParse(rec.forecastText);
+    if (!rec || typeof rec !== "object" || rec.fcv === FC_VERSION) return rec;
     const old = rec.fc || null;
-    if (!fc && old && old.dir && old.dir !== "flat") {
-      const unit = String(old.unit || "");
+    let fc = null;
+    const fromText = fcParse(rec.forecastText);
+    if (fromText) fc = fromText;
+    else if (old && old.dir && old.dir !== "flat") {
       const parts = String(old.amt || "").split("-").map((x) => +x).filter((v) => isFinite(v) && v > 0);
-      if (unit === "元/吨" && parts.length) {
-        const ls = parts.map((v) => v / LPT_GAS);
-        if (ls.every((v) => v >= 0.005)) fc = { dir: old.dir, amt: ls.map(two).join("-"), unit: "元/升", est: true, basis: "ton" };
-      } else if (unit === "元/升" && parts.length) {
-        fc = { dir: old.dir, amt: parts.map(two).join("-"), unit: "元/升", est: !!old.est };
+      if (String(old.unit) === "元/吨" && parts.length) fc = fcFromTons(tonPair(parts), old.dir);
+      else if (String(old.unit) === "元/升" && parts.length) {
+        const lo = Math.min(...parts), hi = Math.max(...parts);
+        fc = { dir: old.dir, amt: lo === hi ? two(lo) : `${two(lo)}-${two(hi)}`, unit: "元/升", est: !!old.est, basis: "legacy", lo, hi };
       }
     }
-    return { ...rec, fc: fc || null, fcv: 3 };
+    return { ...rec, fc: fc || null, fcv: FC_VERSION };
   }
 
   /** next_adjustment 形如「下次油价7月3日24时调整」：只认真实写出的月/日，不推算 */
@@ -684,7 +761,7 @@ export default async function (ctx) {
   let fcData = null, fcState = "", fcNote = "";
   if (FC_ON && cnProv && !regionInvalid) {
     try { fcData = ctx.storage.getJSON(FC_DATA); } catch (_) { fcData = null; }
-    if (fcData && fcData.fcv !== 3) {                     // 旧缓存（含吨价）就地归一，只写 FC_DATA
+    if (fcData && fcData.fcv !== FC_VERSION) {                     // 旧缓存（含吨价）就地归一，只写 FC_DATA
       fcData = fcCompat(fcData);
       try { ctx.storage.setJSON(FC_DATA, fcData); } catch (_) {}
     }
@@ -702,7 +779,7 @@ export default async function (ctx) {
       saveBudget("reserved", 0);                   // 先落预算再发请求：中途失败也算今天已用
       let resp = null, body = null, status = 0;
       try {
-        const headers = { "content-type": "application/json", accept: "application/json", "user-agent": "EgernOilWidget/4.6" };
+        const headers = { "content-type": "application/json", accept: "application/json", "user-agent": "EgernOilWidget/4.6.2" };
         if (OIL_KEY) headers.authorization = `Bearer ${OIL_KEY}`;
         resp = await ctx.http.post(FC_URL, { headers, body: { province: cnProv }, timeout: 8000 });
         status = resp ? resp.status : 0;
@@ -724,7 +801,7 @@ export default async function (ctx) {
           province: String(d.province || cnProv),
           forecastText: String(d.forecast || ""),
           nextText: String(d.next_adjustment || ""),
-          fc: fcParse(d.forecast), fcv: 3,
+          fc: fcParse(d.forecast, perGradeTons(d)), fcv: FC_VERSION,
           nextDate: nd ? YMD(nd) : "",
         };
         try { ctx.storage.setJSON(FC_DATA, rec); } catch (_) {}
@@ -858,6 +935,25 @@ export default async function (ctx) {
 
 
 
+  // 文本宽度估算（保守口径，只用于「选最大可容纳字号」与溢出断言，不改文案）：
+  //  CJK 1.02em / 数字 0.57em / 点逗号斜杠 0.31em / 连字符 0.37em / 箭头 0.6em / 空格 0.3em，粗体 ×1.04
+  const CH_EM = (ch) => {
+    const c = ch.codePointAt(0);
+    if (c > 0x2e80) return 1.02;
+    if ("0123456789".includes(ch)) return 0.57;
+    if (ch === "." || ch === "," || ch === "/" || ch === "·") return 0.31;
+    if (ch === "-" || ch === "+" || ch === "~") return 0.37;
+    if (ch === "↓" || ch === "↑" || ch === "→") return 0.6;
+    if (ch === "%" || ch === "¥") return 0.72;
+    if (ch === " " || ch === "\u00a0") return 0.3;
+    return 0.56;
+  };
+  const textWidth = (s, size, weight) => {
+    let w = 0;
+    for (const ch of String(s)) w += CH_EM(ch) * size;
+    return w * (weight === "bold" || weight === "semibold" || weight === "heavy" || weight === "black" ? 1.04 : 1);
+  };
+
   // ════════════════════════════════════════════════════════════
   // 5. 通用构件（只用官方支持字段：无 justifyContent，无 alignItems:'stretch'）
   //    高度口径：stack 的显式 height 按「含 padding 的边框盒」处理（保守），
@@ -912,35 +1008,31 @@ export default async function (ctx) {
     };
   }
 
-  // 中号右栏三块（v4.6.1）：最近调价 / 涨跌预测 / 下轮预计调价时间 —— 三块严格等高 36pt，
+  // 中号右栏三块（v4.6.2）：最近调价 / 涨跌预测 / 下轮预计时间 —— 三块严格等高 36pt，
   //   36×3 + 块距 4×2 = 116 = 左栏（四卡 46 + 4 + 图 66），右栏总高仍与左栏逐像素对齐。
-  //   块内统一骨架「(分隔线 1) + 留白 + 标题 9pt(LH12) + 数值 13.5pt(LH17) + 留白」= 36，
-  //   首块无分隔线用 3pt 留白，故三块标题/数值基线逐行对齐、块内不留中空。
-  //   最近调价不再带日期副行（去掉「最近调价下面的时间」）；不显示剩余天数。
-  //   预测数值统一「元/升」，与最近调价同单位；吨价换来的估算值带「约」。
+  //   块内「紧凑两行」骨架：标题 10pt（行高 13）+ 数值 15.5pt（行高 20）+ 只补 1~3pt 顶留白，
+  //     半空 → 36pt 被标题与数值铺满（旧版 9pt / 13.5pt + 上下 2/4pt 留白）；
+  //   标题 10pt 都是在 75pt 内整行放得下的短标签（「下轮预计时间」≤63.6pt），不再靠 minScale 缩字。
+  //   最近调价不带日期副行、不显示剩余天数；预测统一「元/升」区间（吨价换算来的值标「约」）。
   const adjBlockM = (o) => {
     const w = o.w, gapM = 4;
     const h = (o.totalH - gapM * 2) / 3;                 // (116 - 8) / 3 = 36：三块严格等高
-    const T = (s, size, color, weight, minScale) => ({
-      type: "text", text: s, width: w, font: { size, ...(weight ? { weight } : {}) },
-      textColor: color, maxLines: 1, minScale,
-    });
+    const TITLE_H = 13;                                  // 10pt 行高（1.25 保守口径）
     const block = (label, value, color, divider) => ({
       type: "stack", direction: "column", alignItems: "start", width: w, height: h, gap: 0,
       children: [
         ...(divider ? [{ type: "stack", height: 1, width: w - 10, backgroundColor: COLORS.cardBorder, children: [{ type: "spacer" }] }] : []),
-        { type: "spacer", length: divider ? 2 : 3 },
-        T(label, 9, COLORS.tertiary, "", 0.7),
-        T(value, 13.5, color, "bold", 0.6),
-        { type: "spacer", length: 4 },
+        { type: "spacer", length: divider ? 2 : 3 },     // 分隔线 1 / 顶留白 2 → 三块标题同基线
+        { type: "text", text: label, width: w, font: { size: 10, weight: "semibold" }, textColor: COLORS.tertiary, maxLines: 1, minScale: 0.8 },
+        { type: "text", text: value, width: w, font: { size: 15.5, weight: "bold" }, textColor: color, maxLines: 1, minScale: 0.74 },
       ],
     });
     return {
       type: "stack", direction: "column", alignItems: "start", width: w, gap: gapM,
       children: [
         block("最近调价", adjTxt, adjColor, false),
-        block(fcValid && fcUnit ? `涨跌预测（${fcUnit}）` : "涨跌预测", fcText, fcColor, true),
-        block("下轮预计调价时间", nextTimeTxt, COLORS.secondary, true),
+        block(fcValid && fcUnit ? "涨跌预测 元/升" : "涨跌预测", fcText, fcColor, true),
+        block("下轮预计时间", nextTimeTxt, COLORS.secondary, true),
       ],
     };
   };
@@ -999,11 +1091,11 @@ export default async function (ctx) {
     // 四格与标题行一个像素不动；无有效预测写「暂无预测」，绝不补数字。
     const footDate = nextShow ? `${nextShow.getMonth() + 1}/${nextShow.getDate()}调` : "";
     const footNode = {
-      type: "stack", direction: "row", alignItems: "center", width: SW, height: FOOT_H, gap: 3,
+      type: "stack", direction: "row", alignItems: "center", width: SW, height: FOOT_H, gap: 2,
       children: [
         { type: "image", src: "sf-symbol:calendar", width: 9, height: 9, color: COLORS.tertiary },
         { type: "text", text: "涨跌预测", flex: 1, font: { size: 9, weight: "semibold" }, textColor: COLORS.secondary, maxLines: 1, minScale: 0.7 },
-        { type: "text", text: fcValid && fcUnit ? `${fcText} ${fcUnit}` : fcText, font: { size: 8.5, weight: "semibold" }, textColor: fcColor, maxLines: 1, minScale: 0.55 },
+        { type: "text", text: fcText, font: { size: 9, weight: "semibold" }, textColor: fcColor, maxLines: 1, minScale: 0.55 },
         ...(footDate ? [{ type: "text", text: footDate, font: { size: 8.5 }, textColor: COLORS.tertiary, maxLines: 1, minScale: 0.7 }] : []),
       ],
     };
@@ -1160,6 +1252,9 @@ export default async function (ctx) {
   const bigMainLabel = "涨跌预测（全国）";
   const bigMainVal = fcValid ? (fcData.fc.dir === "flat" ? "搁浅" : `${fcAmt}${fcUnit ? " " + fcUnit : ""}`) : "暂无预测";
   const bigMainColor = fcValid ? fcColor : COLORS.secondary;
+  // 大号预测值按 146.5pt（colW_L）预算取最大可容纳字号：区间「↓约0.28-0.33 元/升」比单值长
+  let bigMainSize = 17;
+  while (bigMainSize > 13 && textWidth(bigMainVal, bigMainSize, "bold") > colW_L) bigMainSize -= 0.5;
   const adjShort = adj && adj.range
     ? `${adj.dir === "down" ? "↓" : adj.dir === "up" ? "↑" : "→"}${String(adj.range).split("-")[0]}`
     : "";
@@ -1188,7 +1283,7 @@ export default async function (ctx) {
                     type: "stack", direction: "column", alignItems: "start", width: colW_L, gap: 2,
                     children: [
                       { type: "text", text: bigMainLabel, width: colW_L, font: { size: 10 }, textColor: COLORS.tertiary, maxLines: 1 },
-                      { type: "text", text: bigMainVal, width: colW_L, font: { size: 17, weight: "bold" }, textColor: bigMainColor, maxLines: 1, minScale: 0.6 },
+                      { type: "text", text: bigMainVal, width: colW_L, font: { size: bigMainSize, weight: "bold" }, textColor: bigMainColor, maxLines: 1, minScale: 0.7 },
                       { type: "text", text: bigSub, width: colW_L, font: { size: 9.5 }, textColor: COLORS.secondary, maxLines: 1, minScale: 0.7 },
                     ],
                   }, vDivider(44)] : []),
