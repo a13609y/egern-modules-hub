@@ -1,0 +1,84 @@
+name: sync-china
+
+# 中国规则集（rules/china）：每天拉一次上游，校验通过且有变化才提交。
+#
+# 只读 codeload.github.com（1 次 tar）+ raw.githubusercontent.com（2 次），不调用 api.github.com、
+# 不带任何 PAT —— 一天约 3 个请求，不会触发 REST 限流 / 风控。
+on:
+  schedule:
+    - cron: "47 4 * * *" # 每天 04:47 UTC（北京时间 12:47），与其他同步任务错开
+  workflow_dispatch:
+  push:
+    paths:
+      - ".github/workflows/sync-china.yml" # 只有本文件变化才自触发；产物变化靠 [skip ci] 不回流
+
+permissions:
+  contents: write # 最小权限：只够提交本仓库文件
+
+concurrency:
+  group: sync-china
+  cancel-in-progress: false # 串行排队，不互相取消（避免半截状态被打断）
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # 允许 rebase 重试
+
+      - name: 依赖（PyYAML 用于验收脚本）
+        run: python3 -c "import yaml" || python3 -m pip install --quiet --disable-pip-version-check "pyyaml==6.0.2"
+
+      - name: 拉上游 → 重生成（失败即中止，旧产物保留）
+        timeout-minutes: 5
+        run: python3 rules/china/sync.py
+
+      - name: 静态验收（schema / 样本 / 每个 IP no_resolve / 格式）
+        timeout-minutes: 3
+        run: python3 rules/china/verify.py
+
+      - name: 提交变化（无变化不提交）
+        timeout-minutes: 5
+        run: |
+          set -eu
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if [ -z "$(git status --porcelain rules/china/china.yaml rules/china/china.txt)" ]; then
+            echo "上游无变化，不提交"
+            exit 0
+          fi
+          git add rules/china/china.yaml rules/china/china.txt
+          git commit -m "chore(china): 跟随上游更新 $(date -u +%F) [skip ci]"
+          # 有限重试：并发提交导致 non-fast-forward 时 rebase 后再推，3 次后放弃（不 force）
+          for i in 1 2 3; do
+            git pull --rebase --autostash origin "${GITHUB_REF_NAME}" && git push && { echo "::notice::已同步上游更新"; exit 0; }
+            echo "第 $i 次推送失败，等待后重试"
+            sleep 5
+          done
+          echo "::error::推送连续失败，本次不提交"
+          exit 1
+
+      - name: 回读校验（raw 上的内容与本次生成的字节一致）
+        timeout-minutes: 2
+        run: |
+          python3 - <<'PY'
+          import hashlib, os, subprocess, time, urllib.request
+          repo = os.environ["GITHUB_REPOSITORY"]
+          sha = subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip()
+          for p in ("rules/china/china.yaml", "rules/china/china.txt"):
+              local = open(p, "rb").read()
+              url = f"https://raw.githubusercontent.com/{repo}/{sha}/{p}"  # 用 commit sha，避开 CDN 缓存
+              for attempt in range(3):
+                  try:
+                      req = urllib.request.Request(url, headers={"User-Agent": "sync-china-verify"})
+                      remote = urllib.request.urlopen(req, timeout=60).read()
+                      break
+                  except Exception:
+                      if attempt == 2:
+                          raise
+                      time.sleep(5)
+              assert remote == local, f"{p} 回读不一致"
+              print(f"{p} ok {len(remote)} bytes sha256={hashlib.sha256(remote).hexdigest()[:12]}")
+          PY
