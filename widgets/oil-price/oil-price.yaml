@@ -1,5 +1,5 @@
 name: 全国实时油价
-description: 92/95/98 号汽油与柴油实时油价小组件 · 小/中/大号三套布局（四油品 2×2 田字格，标题与时间同一行 / 四油品+加高走势 / 完整信息）· 调价信息优先下轮：只有真实下轮幅度才标「预测」，仅有窗口日期时显示最近调价 + 下轮日期并注明预计/距日期 · 走势用 BesFuel 逐期核实的发改委调价历史（地区/油号严格对应，不调整画空心点、缺表断线；最多最近 10 轮真实节点，普通折线 + 浅橙渐变面积 + 绿色末点） · 现价源 m.qiyoujiage.com，历史源 BesFuel（MIT 代码，数据为公告事实）
+description: 92/95/98 号汽油与柴油实时油价小组件 · 涨跌预测（官方文档接口，每日最多一次请求）· 小/中/大号三套布局（四油品 2×2 田字格，标题与时间同一行 / 四油品+加高走势 / 完整信息）· 调价信息优先下轮：只有真实下轮幅度才标「预测」，仅有窗口日期时显示最近调价 + 下轮日期并注明预计/距日期 · 走势用 BesFuel 逐期核实的发改委调价历史（地区/油号严格对应，不调整画空心点、缺表断线；最多最近 10 轮真实节点，普通折线 + 浅橙渐变面积 + 绿色末点） · 现价源 m.qiyoujiage.com，历史源 BesFuel（MIT 代码，数据为公告事实）
 author: Egern 群友 @iBL3ND
 homepage: https://github.com/a13609y/egern-modules-hub
 icon: fuelpump.fill
@@ -11,6 +11,8 @@ compat_arguments:
   REFRESH_HOURS: 6
   FUEL: "95"
   FULL_LITERS: "50"
+  FORECAST: "true"
+  OIL_API_KEY: ""
 
 compat_arguments_desc: |
   地区写省份/城市，拼音（fujian、hainan/haikou）或中文（福建、海口、广东深圳）都行。走势图只画最近 10 个真实调价节点。
@@ -42,6 +44,17 @@ env_schema:
     name: 加满升数
     description: 大号「加满」金额按多少升计算，默认 50
     default_value: "50"
+  FORECAST:
+    name: 涨跌预测（默认打开）
+    description: 打开后按官方文档接口取「涨跌预测 / 下轮调价时间」，北京时间每天最多请求 1 次（失败也算，不即时重试，429 当天封停）；缺有效数据时显示「暂无预测」，绝不拿历史或推算冒充
+    options:
+      - "true"
+      - "false"
+    default_value: "true"
+  OIL_API_KEY:
+    name: API Key（可留空）
+    description: 极数本源 API Key，只保存在本机 Egern 参数里，默认留空即匿名（文档：每天 5 次）。本模块不会把 Key 写入仓库、日志或任何缓存
+    default_value: ""
   REFRESH_HOURS:
     name: 刷新间隔（小时）
     description: 小组件刷新提示间隔，实际刷新由系统调度，不保证精确（1~24）
@@ -60,6 +73,8 @@ scriptings:
         REFRESH_HOURS: "{{{REFRESH_HOURS}}}"
         FUEL: "{{{FUEL}}}"
         FULL_LITERS: "{{{FULL_LITERS}}}"
+        FORECAST: "{{{FORECAST}}}"
+        OIL_API_KEY: "{{{OIL_API_KEY}}}"
 
 widgets:
   - name: 实时油价
