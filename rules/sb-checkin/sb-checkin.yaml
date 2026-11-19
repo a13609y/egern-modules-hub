@@ -1,0 +1,47 @@
+# sb.sb（烧饼论坛）最小化每日签到模块
+# 目标：仅捕获 sb.sb 的 Cookie 并在每日定时调用 /checkin/ 表单接口
+# 不修改任何请求/响应，不改路由与代理行为，仅对 sb.sb 开 MITM 以读取 Cookie 请求头
+name: sb.sb 每日签到
+description: 捕获 sb.sb 登录 Cookie，每日定时执行烧饼论坛签到（默认只做只读检查，需手动放开提交）
+author: minis
+homepage: https://sb.sb/checkin/
+# 一键导入（订阅本 YAML）：https://raw.githubusercontent.com/a13609y/egern-modules-hub/main/rules/sb-checkin/sb-checkin.yaml
+icon: calendar.badge.checkmark
+
+compat_arguments: {}
+compat_arguments_desc: |
+  无需参数。签到成功与否通过通知反馈。
+
+env_schema:
+  ALLOW_POST:
+    name: 允许提交签到
+    description: "默认 false：只做只读预检（GET /checkin/），不产生签到副作用。确认无误后改为 true。"
+    options:
+      - "false"
+      - "true"
+    default_value: "false"
+  MESSAGE:
+    name: 签到留言（可选）
+    description: 最多 100 字，留空则不发送 message 字段
+    default_value: ""
+  COOKIE:
+    name: 手动 Cookie（可选）
+    description: 留空则使用 http_request 脚本从 sb.sb 请求中捕获的 Cookie
+    default_value: ""
+
+scriptings:
+  - http_request:
+      name: sb.sb Cookie 采集
+      # 只匹配签到页请求；只读 Cookie 请求头，不读取 body，不修改请求
+      match: "^https://sb\\.sb/checkin"
+      script_url: "https://raw.githubusercontent.com/a13609y/egern-modules-hub/main/rules/sb-checkin/scripts/sb-checkin-capture.js"
+      timeout: 5
+  - schedule:
+      name: sb.sb 每日签到
+      cron: "0 8 * * *"
+      script_url: "https://raw.githubusercontent.com/a13609y/egern-modules-hub/main/rules/sb-checkin/scripts/sb-checkin-daily.js"
+      timeout: 180
+
+mitm:
+  hostnames:
+    - "sb.sb"

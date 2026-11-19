@@ -43,6 +43,7 @@ docs/               说明与踩坑记录
 | [Pinterest 去广告](rules/pinterest/README.md) | 去 Pinterest 信息流、搜索、相关推荐里的推广 Pin，拦广告与点击追踪域名 | `https://raw.githubusercontent.com/a13609y/egern-modules-hub/main/rules/pinterest/pinterest.yaml` |
 | [番茄小说去广告](rules/fanqie-adblock/README.md) | 穿山甲 / 广告计费 / 广告素材 / 章末视频，域名表每天跟随上游聚合 | `https://raw.githubusercontent.com/a13609y/egern-modules-hub/main/rules/fanqie-adblock/fanqie-adblock.yaml` |
 | [PingMe 签到 + 看视频奖励](rules/pingme/README.md) | 签到（滚动签到小时 + 当天追赶制）与看视频得奖励拆成两条独立定时任务，各自 cron / 超时 / 开关，支持多账号 | `https://raw.githubusercontent.com/a13609y/egern-modules-hub/main/rules/pingme/pingme.yaml` |
+| [sb.sb 每日签到](rules/sb-checkin/README.md) | 只采集 sb.sb 签到页 Cookie 后每日预检签到页；默认只读（不提交），放开后仅在页面无 Cap.js 人机验证标记时提交，重定向一律不记成功、只报待网页确认 | `https://raw.githubusercontent.com/a13609y/egern-modules-hub/main/rules/sb-checkin/sb-checkin.yaml` |
 | [中国规则集](rules/china/README.md) | 大陆域名 8,421 条（后缀 8,339 / 精确 79 / 正则 3）+ IPv4 6,221 段 + IPv6 3,444 段，顶层 `no_resolve: true`（IP 规则不触发额外 DNS 解析）；纯规则集，命中走 `DIRECT` | `https://raw.githubusercontent.com/a13609y/egern-modules-hub/main/rules/china/china.yaml` |
 | [国外域名规则集](rulesets/foreign-domains/README.md) | 26,000+ 条国外域名（v2fly geolocation-!cn + Loyalsoldier proxy），已剔除中国域名；纯规则集，给 `rule_set` 引用 | `https://raw.githubusercontent.com/a13609y/egern-modules-hub/main/rulesets/foreign-domains/foreign-domains.yaml` |
 
