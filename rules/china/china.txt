@@ -1,6 +1,6 @@
 # 中国规则集（通用文本：DOMAIN-SUFFIX / DOMAIN / IP-CIDR / IP-CIDR6）
 # 自动生成，请勿手改。生成器：rules/china/sync.py
-# 后缀 8339 / 精确 79 / 关键词 0 / 正则 3 / IPv4 6227 / IPv6 3446
+# 后缀 8339 / 精确 79 / 关键词 0 / 正则 3 / IPv4 6223 / IPv6 3444
 
 DOMAIN-SUFFIX,0033.cn
 DOMAIN-SUFFIX,00cdn.com
@@ -12477,8 +12477,6 @@ IP-CIDR,121.59.32.0/22,no-resolve
 IP-CIDR,121.59.96.0/22,no-resolve
 IP-CIDR,121.59.108.0/22,no-resolve
 IP-CIDR,121.59.136.0/22,no-resolve
-IP-CIDR,122.8.44.0/22,no-resolve
-IP-CIDR,122.8.92.0/22,no-resolve
 IP-CIDR,122.10.164.0/22,no-resolve
 IP-CIDR,122.10.192.0/22,no-resolve
 IP-CIDR,122.10.200.0/22,no-resolve
@@ -13571,7 +13569,6 @@ IP-CIDR,8.148.43.0/24,no-resolve
 IP-CIDR,36.37.39.0/24,no-resolve
 IP-CIDR,39.0.0.0/24,no-resolve
 IP-CIDR,42.0.201.0/24,no-resolve
-IP-CIDR,42.240.250.0/24,no-resolve
 IP-CIDR,43.225.175.0/24,no-resolve
 IP-CIDR,43.242.53.0/24,no-resolve
 IP-CIDR,43.242.54.0/24,no-resolve
@@ -13616,7 +13613,6 @@ IP-CIDR,103.92.86.0/24,no-resolve
 IP-CIDR,103.97.229.0/24,no-resolve
 IP-CIDR,103.99.53.0/24,no-resolve
 IP-CIDR,103.99.55.0/24,no-resolve
-IP-CIDR,103.99.62.0/24,no-resolve
 IP-CIDR,103.100.62.0/24,no-resolve
 IP-CIDR,103.105.133.0/24,no-resolve
 IP-CIDR,103.106.202.0/24,no-resolve
@@ -16347,7 +16343,6 @@ IP-CIDR6,2406:bb80::/32,no-resolve
 IP-CIDR6,2406:bc80::/32,no-resolve
 IP-CIDR6,2406:bd40::/32,no-resolve
 IP-CIDR6,2406:bd80::/32,no-resolve
-IP-CIDR6,2406:bdc0::/32,no-resolve
 IP-CIDR6,2406:be80::/32,no-resolve
 IP-CIDR6,2406:bf80::/32,no-resolve
 IP-CIDR6,2406:c080::/32,no-resolve
@@ -16732,6 +16727,7 @@ IP-CIDR6,2a0a:d680:1000::/36,no-resolve
 IP-CIDR6,2a0a:d680:9000::/36,no-resolve
 IP-CIDR6,2a0a:d681:f000::/36,no-resolve
 IP-CIDR6,2a0a:d682:c000::/36,no-resolve
+IP-CIDR6,2a0a:d682:e000::/36,no-resolve
 IP-CIDR6,2a0a:d685:1000::/36,no-resolve
 IP-CIDR6,2a0a:d687:e000::/36,no-resolve
 IP-CIDR6,2a13:1800:1000::/36,no-resolve
@@ -17324,6 +17320,7 @@ IP-CIDR6,2406:840:9670::/44,no-resolve
 IP-CIDR6,2406:840:9690::/44,no-resolve
 IP-CIDR6,2406:840:9850::/44,no-resolve
 IP-CIDR6,2406:840:9870::/44,no-resolve
+IP-CIDR6,2406:840:9970::/44,no-resolve
 IP-CIDR6,2406:840:9fe0::/44,no-resolve
 IP-CIDR6,2406:840:e090::/44,no-resolve
 IP-CIDR6,2406:840:e0d0::/44,no-resolve
@@ -17470,7 +17467,6 @@ IP-CIDR6,2406:840:9118::/45,no-resolve
 IP-CIDR6,2406:840:9170::/45,no-resolve
 IP-CIDR6,2406:840:9668::/45,no-resolve
 IP-CIDR6,2406:840:9868::/45,no-resolve
-IP-CIDR6,2406:840:9978::/45,no-resolve
 IP-CIDR6,2406:840:9988::/45,no-resolve
 IP-CIDR6,2406:840:e0c0::/45,no-resolve
 IP-CIDR6,2406:840:e0e8::/45,no-resolve
@@ -17609,7 +17605,6 @@ IP-CIDR6,2406:840:9114::/46,no-resolve
 IP-CIDR6,2406:840:917c::/46,no-resolve
 IP-CIDR6,2406:840:9814::/46,no-resolve
 IP-CIDR6,2406:840:9968::/46,no-resolve
-IP-CIDR6,2406:840:9970::/46,no-resolve
 IP-CIDR6,2406:840:9984::/46,no-resolve
 IP-CIDR6,2406:840:e0c8::/46,no-resolve
 IP-CIDR6,2406:840:e108::/46,no-resolve
@@ -17765,7 +17760,6 @@ IP-CIDR6,2406:840:9860::/47,no-resolve
 IP-CIDR6,2406:840:9866::/47,no-resolve
 IP-CIDR6,2406:840:9960::/47,no-resolve
 IP-CIDR6,2406:840:996e::/47,no-resolve
-IP-CIDR6,2406:840:9974::/47,no-resolve
 IP-CIDR6,2406:840:9982::/47,no-resolve
 IP-CIDR6,2406:840:e0cc::/47,no-resolve
 IP-CIDR6,2406:840:e0e6::/47,no-resolve
@@ -17957,7 +17951,6 @@ IP-CIDR6,2406:840:9865::/48,no-resolve
 IP-CIDR6,2406:840:9963::/48,no-resolve
 IP-CIDR6,2406:840:9965::/48,no-resolve
 IP-CIDR6,2406:840:996d::/48,no-resolve
-IP-CIDR6,2406:840:9976::/48,no-resolve
 IP-CIDR6,2406:840:9981::/48,no-resolve
 IP-CIDR6,2406:840:e0ce::/48,no-resolve
 IP-CIDR6,2406:840:e0e4::/48,no-resolve
@@ -18034,6 +18027,7 @@ IP-CIDR6,2406:840:fede::/48,no-resolve
 IP-CIDR6,2406:840:feec::/48,no-resolve
 IP-CIDR6,2406:840:feff::/48,no-resolve
 IP-CIDR6,2408:4000:103::/48,no-resolve
+IP-CIDR6,2408:4016:1::/48,no-resolve
 IP-CIDR6,240c:0:1::/48,no-resolve
 IP-CIDR6,240c:6:2::/48,no-resolve
 IP-CIDR6,240c:f::/48,no-resolve
