@@ -1,6 +1,6 @@
 # 中国规则集（通用文本：DOMAIN-SUFFIX / DOMAIN / IP-CIDR / IP-CIDR6）
 # 自动生成，请勿手改。生成器：rules/china/sync.py
-# 后缀 8339 / 精确 79 / 关键词 0 / 正则 3 / IPv4 6223 / IPv6 3444
+# 后缀 8343 / 精确 79 / 关键词 0 / 正则 3 / IPv4 6219 / IPv6 3444
 
 DOMAIN-SUFFIX,0033.cn
 DOMAIN-SUFFIX,00cdn.com
@@ -2669,6 +2669,7 @@ DOMAIN-SUFFIX,ebscn.com
 DOMAIN-SUFFIX,ebtrust.com
 DOMAIN-SUFFIX,eceshi.com
 DOMAIN-SUFFIX,echargenet.com
+DOMAIN-SUFFIX,echooai.com
 DOMAIN-SUFFIX,ecitic.com
 DOMAIN-SUFFIX,ecjobhome.com
 DOMAIN-SUFFIX,eckwai.com
@@ -2810,8 +2811,10 @@ DOMAIN-SUFFIX,fastcom.com.cn
 DOMAIN-SUFFIX,favonis.cloud
 DOMAIN-SUFFIX,favonis.com
 DOMAIN-SUFFIX,favonis.space
+DOMAIN-SUFFIX,faw-vw.com
 DOMAIN-SUFFIX,faw.cn
 DOMAIN-SUFFIX,faxingbao.com
+DOMAIN-SUFFIX,fazhipro.com
 DOMAIN-SUFFIX,fbank.com
 DOMAIN-SUFFIX,fbstatic.cn
 DOMAIN-SUFFIX,fcapp.run
@@ -5962,6 +5965,7 @@ DOMAIN-SUFFIX,rwkv.cn
 DOMAIN-SUFFIX,rwkv.com
 DOMAIN-SUFFIX,rzrc114.com
 DOMAIN-SUFFIX,s0n.cn
+DOMAIN-SUFFIX,saasfz.com
 DOMAIN-SUFFIX,saasops.tech
 DOMAIN-SUFFIX,saayaa.com
 DOMAIN-SUFFIX,saduck.top
@@ -9685,6 +9689,7 @@ IP-CIDR,103.63.32.0/19,no-resolve
 IP-CIDR,103.64.32.0/19,no-resolve
 IP-CIDR,103.64.160.0/19,no-resolve
 IP-CIDR,103.65.64.0/19,no-resolve
+IP-CIDR,103.73.0.0/19,no-resolve
 IP-CIDR,103.86.224.0/19,no-resolve
 IP-CIDR,103.89.192.0/19,no-resolve
 IP-CIDR,103.96.160.0/19,no-resolve
@@ -10056,7 +10061,6 @@ IP-CIDR,103.67.128.0/20,no-resolve
 IP-CIDR,103.72.16.0/20,no-resolve
 IP-CIDR,103.72.32.0/20,no-resolve
 IP-CIDR,103.72.240.0/20,no-resolve
-IP-CIDR,103.73.16.0/20,no-resolve
 IP-CIDR,103.73.128.0/20,no-resolve
 IP-CIDR,103.74.32.0/20,no-resolve
 IP-CIDR,103.79.192.0/20,no-resolve
@@ -10589,7 +10593,6 @@ IP-CIDR,103.72.48.0/21,no-resolve
 IP-CIDR,103.72.112.0/21,no-resolve
 IP-CIDR,103.72.128.0/21,no-resolve
 IP-CIDR,103.72.224.0/21,no-resolve
-IP-CIDR,103.73.0.0/21,no-resolve
 IP-CIDR,103.74.24.0/21,no-resolve
 IP-CIDR,103.74.56.0/21,no-resolve
 IP-CIDR,103.74.152.0/21,no-resolve
@@ -11722,7 +11725,6 @@ IP-CIDR,103.72.124.0/22,no-resolve
 IP-CIDR,103.72.172.0/22,no-resolve
 IP-CIDR,103.72.180.0/22,no-resolve
 IP-CIDR,103.72.236.0/22,no-resolve
-IP-CIDR,103.73.12.0/22,no-resolve
 IP-CIDR,103.73.48.0/22,no-resolve
 IP-CIDR,103.73.116.0/22,no-resolve
 IP-CIDR,103.73.120.0/22,no-resolve
@@ -12762,7 +12764,6 @@ IP-CIDR,221.128.232.0/22,no-resolve
 IP-CIDR,223.27.184.0/22,no-resolve
 IP-CIDR,223.29.208.0/22,no-resolve
 IP-CIDR,223.122.20.0/22,no-resolve
-IP-CIDR,223.123.196.0/22,no-resolve
 IP-CIDR,223.252.168.0/22,no-resolve
 IP-CIDR,223.255.236.0/22,no-resolve
 IP-CIDR,1.0.2.0/23,no-resolve
@@ -12833,7 +12834,6 @@ IP-CIDR,103.69.62.0/23,no-resolve
 IP-CIDR,103.70.14.0/23,no-resolve
 IP-CIDR,103.70.224.0/23,no-resolve
 IP-CIDR,103.72.234.0/23,no-resolve
-IP-CIDR,103.73.10.0/23,no-resolve
 IP-CIDR,103.75.82.0/23,no-resolve
 IP-CIDR,103.79.228.0/23,no-resolve
 IP-CIDR,103.81.184.0/23,no-resolve
@@ -12848,7 +12848,6 @@ IP-CIDR,103.97.60.0/23,no-resolve
 IP-CIDR,103.98.0.0/23,no-resolve
 IP-CIDR,103.104.198.0/23,no-resolve
 IP-CIDR,103.105.134.0/23,no-resolve
-IP-CIDR,103.109.106.0/23,no-resolve
 IP-CIDR,103.114.156.0/23,no-resolve
 IP-CIDR,103.116.138.0/23,no-resolve
 IP-CIDR,103.117.74.0/23,no-resolve
@@ -13553,6 +13552,7 @@ IP-CIDR,223.122.6.0/23,no-resolve
 IP-CIDR,223.122.14.0/23,no-resolve
 IP-CIDR,223.122.18.0/23,no-resolve
 IP-CIDR,223.122.26.0/23,no-resolve
+IP-CIDR,223.123.198.0/23,no-resolve
 IP-CIDR,223.123.206.0/23,no-resolve
 IP-CIDR,223.252.174.0/23,no-resolve
 IP-CIDR,223.255.252.0/23,no-resolve
@@ -13616,6 +13616,7 @@ IP-CIDR,103.99.55.0/24,no-resolve
 IP-CIDR,103.100.62.0/24,no-resolve
 IP-CIDR,103.105.133.0/24,no-resolve
 IP-CIDR,103.106.202.0/24,no-resolve
+IP-CIDR,103.109.106.0/24,no-resolve
 IP-CIDR,103.115.19.0/24,no-resolve
 IP-CIDR,103.117.73.0/24,no-resolve
 IP-CIDR,103.119.115.0/24,no-resolve
@@ -14617,7 +14618,6 @@ IP-CIDR,223.29.255.0/24,no-resolve
 IP-CIDR,223.122.5.0/24,no-resolve
 IP-CIDR,223.122.13.0/24,no-resolve
 IP-CIDR,223.122.29.0/24,no-resolve
-IP-CIDR,223.123.205.0/24,no-resolve
 IP-CIDR,223.252.172.0/24,no-resolve
 IP-CIDR,60.204.223.128/25,no-resolve
 IP-CIDR,103.36.165.128/25,no-resolve
