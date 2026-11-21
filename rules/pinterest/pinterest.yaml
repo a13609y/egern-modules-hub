@@ -1,17 +1,12 @@
-name: Pinterest 去广告
-description: 跟随上游可莉模块自动同步。只清 /v\d/feeds/home/ 与 /v\d/pins/<id>/related/modules/ 里的推广 Pin（is_promoted），其余路径不接手、不改写。图片 CDN 不动。
-author: a13609y
+# [DOC] https://egernapp.com/zh-CN/docs/configuration/body_rewrites（核对：2026-06-03）
+# response_jq 支持 match（完整 URL 正则）和必填 filter；无需脚本或 body_required。
+# [SRC] https://raw.githubusercontent.com/axtyet/Luminous/main/Repcz/Surge/Module/Kelee/Pinterest_remove_ads.sgmodule
+# 保持上游两条 URL 白名单及其“路径尾随 / 且紧接 ?”的匹配范围，不扩展到其他路径、HTTP 或无查询串 URL。
+name: Pinterest 去广告（原生）
+description: 仅移除首页流和相关内容接口 data 数组中不满足上游 is_promoted=false/"false" 条件的条目。
+author: 可莉
 homepage: https://github.com/a13609y/egern-modules-hub/tree/main/rules/pinterest
 icon: https://raw.githubusercontent.com/a13609y/egern-modules-hub/main/rules/pinterest/icon.png
-
-# ---------------------------------------------------------------
-# 本文件由 sync.py 自动生成（.github/workflows/sync-pinterest.yml 每天跑一次）。
-# 上游：https://raw.githubusercontent.com/axtyet/Luminous/main/Repcz/Surge/Module/Kelee/Pinterest_remove_ads.sgmodule
-# 上游版本：2026-06-01 17:11:35
-# 路径白名单：
-  #   api\.pinterest\.com\/v\d\/feeds\/home\/
-  #   api\.pinterest\.com\/v\d\/pins\/\d+\/related\/modules\/
-# ---------------------------------------------------------------
 
 rules:
   - domain:
@@ -31,14 +26,10 @@ mitm:
   hostnames:
     - api.pinterest.com
 
-scriptings:
-  - http_response:
-      name: pinterest_remove_ads
-      match: '^https?:\/\/((?:api\.pinterest\.com\/v\d\/feeds\/home\/)|(?:api\.pinterest\.com\/v\d\/pins\/\d+\/related\/modules\/))'
-      script_url: https://raw.githubusercontent.com/a13609y/egern-modules-hub/main/rules/pinterest/pinterest.js
-      body_required: true
-      max_size: 8388608
-      timeout: 20
-      update_interval: 86400
-
-dns: {}
+body_rewrites:
+  - response_jq:
+      match: '^https://api\.pinterest\.com/v\d+/feeds/home/\?'
+      filter: '.data |= map(select(.is_promoted == false or .is_promoted == "false"))'
+  - response_jq:
+      match: '^https://api\.pinterest\.com/v\d+/pins/\d+/related/modules/\?'
+      filter: '.data |= map(select(.is_promoted == false or .is_promoted == "false"))'
