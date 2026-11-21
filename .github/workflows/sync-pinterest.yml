@@ -22,34 +22,30 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: 拉上游 → 重生成模块
+      - name: 拉上游 → 重生成原生模块
         run: python3 rules/pinterest/sync.py
 
       - name: 静态校验
         run: |
+          python3 -m pip install --quiet --disable-pip-version-check pyyaml==6.0.2
           python3 - <<'PY'
-          import json, re, sys, yaml
-
-          yml = open('rules/pinterest/pinterest.yaml', encoding='utf-8').read()
-          js = open('rules/pinterest/pinterest.js', encoding='utf-8').read()
-          d = yaml.safe_load(yml)
-
-          assert d.get('mitm', {}).get('hostnames'), 'mitm.hostnames 为空'
-          sc = d['scriptings'][0]['http_response']
-          assert sc['match'].startswith('^https'), 'match 不是锚定正则'
-          assert sc['script_url'].endswith('/pinterest.js'), 'script_url 指向错误'
-          assert 'visual_search' not in sc['match'], 'match 里出现了 visual_search（不在上游白名单）'
-
-          assert 'PATH_SOURCES' in js, '生成的脚本缺少路径白名单'
-          assert 'is_promoted' in js, '生成的脚本缺少过滤字段'
-          assert 'export default' in js, '生成的脚本缺少默认导出'
-
-          paths = [json.loads(m) for m in re.findall(r'"(?:[^"\\]|\\.)*"', js.split('PATH_SOURCES = [')[1].split('];')[0])]
-          assert len(paths) == 2, f'上游路径应为 2 条，实际 {len(paths)} 条'
-          for p in paths:
-              assert 'api\\.pinterest\\.com' in p, f'路径不在 api.pinterest.com: {p}'
-
-          print(f'module ok: {len(paths)} 条路径 / mitm={d["mitm"]["hostnames"]}')
+          import json, re, subprocess, yaml
+          d = yaml.safe_load(open('rules/pinterest/pinterest.yaml', encoding='utf-8'))
+          assert d.get('mitm', {}).get('hostnames') == ['api.pinterest.com']
+          assert 'scriptings' not in d, '原生版不得生成 scriptings'
+          rules = [x['response_jq'] for x in d.get('body_rewrites', [])]
+          assert len(rules) == 2, f'response_jq 应为 2 条，实际 {len(rules)}'
+          assert all(set(r) == {'match', 'filter'} for r in rules)
+          expected = [
+              r'^https://api\.pinterest\.com/v\d+/feeds/home/\?',
+              r'^https://api\.pinterest\.com/v\d+/pins/\d+/related/modules/\?',
+          ]
+          assert [r['match'] for r in rules] == expected, '路径白名单偏离上游'
+          payload = {'data': [{'id': 'keep-bool', 'is_promoted': False}, {'id': 'keep-str', 'is_promoted': 'false'}, {'id': 'drop', 'is_promoted': True}], 'untouched': 1}
+          for rule in rules:
+              out = subprocess.run(['jq', rule['filter']], input=json.dumps(payload), text=True, capture_output=True, check=True)
+              assert [x['id'] for x in json.loads(out.stdout)['data']] == ['keep-bool', 'keep-str']
+          print('module ok: 2 response_jq / jq parity ok')
           PY
 
       - name: 提交变化
