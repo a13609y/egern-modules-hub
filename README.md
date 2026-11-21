@@ -19,7 +19,7 @@ rules/              规则 / URL 重写 / MITM / http_response 类模块
 ├── real-ip-domains/ 已合并进 general-enhanced（保留兼容）
 ├── coolapk/        酷安去广告（自动跟随上游 zirawell/R-Store）
 ├── pinterest/      Pinterest 去广告（信息流 / 搜索 / 相关推荐推广 Pin）
-├── bilibili-redirect/ BiliBili CDN 重定向（原样镜像 Biliverse/Redirect，跟随 Releases）
+├── bilibili-redirect/ BiliBili CDN 重定向（生成版：上游六组参数拆成开关，跟随 Releases）
 ├── fanqie-adblock/ 番茄小说去广告（穿山甲 / 广告计费 / 章末视频，跟随上游）
 ├── pingme/         PingMe 签到 + 看视频奖励（拆成两条独立定时任务，可单独开关）
 ├── china/          中国规则集（大陆域名 8,400+ / IPv4 6,200+ / IPv6 3,400+ 段，no_resolve: true，每天跟随上游）
@@ -42,7 +42,7 @@ docs/               说明与踩坑记录
 | [通用增强（合一版）](rules/general-enhanced/README.md) | 三合一：私有网段/组播不走隧道 + 门户检测/STUN/联机/NTP/推送/NAS 等用真实 IP（每天跟随上游聚合）+ MITM 排除 | `https://raw.githubusercontent.com/a13609y/egern-modules-hub/main/rules/general-enhanced/general-enhanced.yaml` |
 | [酷安去广告](rules/coolapk/README.md) | 去酷安开屏 / 首页信息流 / 评论 / 商品推广广告，规则与脚本自动跟随上游 | `https://raw.githubusercontent.com/a13609y/egern-modules-hub/main/rules/coolapk/coolapk.yaml` |
 | [Pinterest 去广告](rules/pinterest/README.md) | 去 Pinterest 信息流、搜索、相关推荐里的推广 Pin，拦广告与点击追踪域名 | `https://raw.githubusercontent.com/a13609y/egern-modules-hub/main/rules/pinterest/pinterest.yaml` |
-| [BiliBili Redirect](rules/bilibili-redirect/README.md) | 哔哩哔哩 CDN 重定向；原样镜像 Biliverse/Redirect 的 Egern 原生 YAML，跟随 Releases | `https://raw.githubusercontent.com/a13609y/egern-modules-hub/main/rules/bilibili-redirect/bilibili-redirect.yaml` |
+| [BiliBili Redirect](rules/bilibili-redirect/README.md) | 哔哩哔哩 CDN 重定向；基于 Biliverse/Redirect 生成，把 `Host.OverseaVideo/BStar/PCDN/MCDN`、`Storage`、`LogLevel` 的每个上游候选值拆成独立开关（每组恰好一个为开才生效，全关/多开回上游默认），每天跟随 Releases 重新生成 | `https://raw.githubusercontent.com/a13609y/egern-modules-hub/main/rules/bilibili-redirect/bilibili-redirect.yaml` |
 | [番茄小说去广告](rules/fanqie-adblock/README.md) | 穿山甲 / 广告计费 / 广告素材 / 章末视频，域名表每天跟随上游聚合 | `https://raw.githubusercontent.com/a13609y/egern-modules-hub/main/rules/fanqie-adblock/fanqie-adblock.yaml` |
 | [PingMe 签到 + 看视频奖励](rules/pingme/README.md) | 签到（滚动签到小时 + 当天追赶制）与看视频得奖励拆成两条独立定时任务，各自 cron / 超时 / 开关，支持多账号 | `https://raw.githubusercontent.com/a13609y/egern-modules-hub/main/rules/pingme/pingme.yaml` |
 | [中国规则集](rules/china/README.md) | 大陆域名 8,421 条（后缀 8,339 / 精确 79 / 正则 3）+ IPv4 6,221 段 + IPv6 3,444 段，顶层 `no_resolve: true`（IP 规则不触发额外 DNS 解析）；纯规则集，命中走 `DIRECT` | `https://raw.githubusercontent.com/a13609y/egern-modules-hub/main/rules/china/china.yaml` |

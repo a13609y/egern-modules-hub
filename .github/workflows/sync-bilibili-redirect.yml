@@ -4,6 +4,11 @@ on:
   schedule:
     - cron: "17 4 * * *" # 每天 04:17 UTC 查询 Biliverse Releases
   workflow_dispatch:
+  push:
+    paths:
+      - "rules/bilibili-redirect/sync.py"
+      - "rules/bilibili-redirect/test.mjs"
+      - ".github/workflows/sync-bilibili-redirect.yml"
 
 permissions:
   contents: write
@@ -18,52 +23,79 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: 获取上游原生 Egern 模块
-        id: upstream
-        env:
-          API_URL: https://api.github.com/repos/Biliverse/Redirect/releases/latest
-        run: |
-          set -euo pipefail
-          tag="$(curl --fail --silent --show-error --retry 3 "$API_URL" | python3 -c 'import json,sys; print(json.load(sys.stdin)["tag_name"])')"
-          test -n "$tag"
-          url="https://github.com/Biliverse/Redirect/releases/download/${tag}/BiliBili.Redirect.yaml"
-          curl --fail --silent --show-error --location --retry 3 "$url" -o rules/bilibili-redirect/bilibili-redirect.yaml
-          test -s rules/bilibili-redirect/bilibili-redirect.yaml
-          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
 
-      - name: 静态校验原样镜像
-        env:
-          TAG: ${{ steps.upstream.outputs.tag }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: 安装依赖
+        run: python3 -m pip install --quiet --disable-pip-version-check pyyaml==6.0.2
+
+      - name: 下载上游并生成（漂移校验失败即中止，保留上一版）
+        id: gen
         run: |
           set -euo pipefail
-          python3 -m pip install --quiet --disable-pip-version-check pyyaml==6.0.2
+          # sync.py 内部：拉 release → 解析六组候选值 → 生成 YAML + bundle
+          #              → 断言 url_rewrites 主机类集合/脚本锚点未漂移 → 原子写
+          python3 rules/bilibili-redirect/sync.py | tee /tmp/gen.log
+          echo "tag=$(grep -o 'tag=.*' /tmp/gen.log | head -1 | sed 's/tag=//;s/;.*//')" >> "$GITHUB_OUTPUT"
+
+      - name: 校验生成产物（结构 + 静态断言）
+        env:
+          TAG: ${{ steps.gen.outputs.tag }}
+        run: |
+          set -euo pipefail
           python3 - <<'PY'
-          import os, re, yaml
-          path = 'rules/bilibili-redirect/bilibili-redirect.yaml'
-          text = open(path, encoding='utf-8').read()
-          assert text.strip(), 'YAML 为空'
-          data = yaml.safe_load(text)
-          for key in ('name', 'compat_arguments', 'url_rewrites', 'map_locals', 'scriptings', 'mitm'):
-              assert data.get(key), f'缺少或为空: {key}'
-          urls = re.findall(r'https?://[^\s"\']*request\.bundle\.js', text)
-          assert urls, 'request.bundle.js URL 为零'
-          expected = f'https://github.com/Biliverse/Redirect/releases/download/{os.environ["TAG"]}/request.bundle.js'
-          assert set(urls) == {expected}, f'脚本 tag 不一致: {set(urls)}'
-          print(f'module ok: {data["name"]}; {len(urls)} script URLs; tag={os.environ["TAG"]}')
+          import os, sys, yaml
+          sys.path.insert(0, 'rules/bilibili-redirect')
+          import importlib.util
+          spec = importlib.util.spec_from_file_location('s', 'rules/bilibili-redirect/sync.py')
+          m = importlib.util.module_from_spec(spec); spec.loader.exec_module(m)
+          ytext = open('rules/bilibili-redirect/bilibili-redirect.yaml', encoding='utf-8').read()
+          js = open('rules/bilibili-redirect/bilibili-redirect.bundle.js', encoding='utf-8').read()
+          data = yaml.safe_load(ytext)
+          m.validate_module(ytext, js, os.environ['TAG'])
+          print('validate_module ok: %d toggles, %d scriptings' % (len(data['env_schema']), len(data['scriptings'])))
           PY
 
+      - name: 行为测试（Node 模拟 ctx）
+        run: node rules/bilibili-redirect/test.mjs
+
+      - name: 生成器自检（--check 应通过）
+        run: python3 rules/bilibili-redirect/sync.py --check
+
       - name: 提交变化
-        env:
-          TAG: ${{ steps.upstream.outputs.tag }}
         run: |
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          if [ -n "$(git status --porcelain rules/bilibili-redirect/bilibili-redirect.yaml)" ]; then
-            git add rules/bilibili-redirect/bilibili-redirect.yaml
-            git commit -m "chore(bilibili-redirect): sync upstream ${TAG}"
+          files="rules/bilibili-redirect/bilibili-redirect.yaml rules/bilibili-redirect/bilibili-redirect.bundle.js"
+          if [ -n "$(git status --porcelain $files)" ]; then
+            git add $files
+            git commit -m "chore(bilibili-redirect): 重新生成参数开关版 ${{ steps.gen.outputs.tag }}"
             git push origin HEAD:main
-            echo "::notice::已同步 Biliverse/Redirect ${TAG}"
+            echo "::notice::已重新生成 Biliverse/Redirect ${{ steps.gen.outputs.tag }}"
+            echo "pushed=1" >> "$GITHUB_OUTPUT"
           else
-            echo "上游无内容变化（${TAG}）"
+            echo "上游无内容变化，未提交"
           fi
+        id: commit
+
+      - name: 回读校验（订阅地址确实返回新内容）
+        if: steps.commit.outputs.pushed == '1'
+        run: |
+          set -euo pipefail
+          base="https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/main/rules/bilibili-redirect"
+          for _ in 1 2 3 4 5 6; do
+            code=$(curl -s -o /tmp/sub.yaml -w '%{http_code}' --max-time 30 "$base/bilibili-redirect.yaml")
+            [ "$code" = "200" ] && break
+            sleep 10
+          done
+          [ "$code" = "200" ] || { echo "订阅地址不可用: $code"; exit 1; }
+          cmp /tmp/sub.yaml rules/bilibili-redirect/bilibili-redirect.yaml
+          curl --fail --silent --show-error --max-time 30 "$base/bilibili-redirect.bundle.js" -o /tmp/sub.js
+          cmp /tmp/sub.js rules/bilibili-redirect/bilibili-redirect.bundle.js
+          echo "::notice::回读一致：YAML 与 bundle"

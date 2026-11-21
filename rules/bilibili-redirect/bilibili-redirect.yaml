@@ -1,7 +1,12 @@
+# 自动生成：python3 rules/bilibili-redirect/sync.py（上游 Biliverse/Redirect）
+# 请勿手改；修改生成逻辑请改 sync.py，每日 GitHub Actions 会重新生成覆盖本文件。
+# Apache-2.0：见同目录 LICENSE / NOTICE。
 name: '📺 BiliBili: 🔀 Redirect'
 description: |-
   哔哩哔哩：重定向
   中国站CDN自定义
+  可同步参数开关版：六组参数（Host.OverseaVideo / Host.BStar / Host.PCDN / Host.MCDN / Storage / LogLevel）的每个上游候选值都是独立的开关；每组恰好一个打开时按所选值生效，全关或多开时按上游默认。
+  上游版本：v0.2.25（由 a13609y/egern-modules-hub 每日自动生成，请勿手改本文件）
 compat_arguments:
   Host.OverseaVideo: upos-sz-mirrorali.bilivideo.com
   Host.BStar: upos-sz-mirrorali.bilivideo.com
@@ -9,7 +14,7 @@ compat_arguments:
   Host.MCDN: proxy-tf-all-ws.bilivideo.com
   Storage: Argument
   LogLevel: WARN
-compat_arguments_desc: |
+compat_arguments_desc: |-
   Host.OverseaVideo: [主机名] 重定向 OverseaVideo CDN (港澳台)
       ├ upos-sz-mirrorali.bilivideo.com: 阿里云 CDN
       ├ upos-sz-mirrorcos.bilivideo.com: 腾讯云 CDN
@@ -82,85 +87,386 @@ compat_arguments_desc: |
       ├ DEBUG: 🅱️ 调试
       └ ALL: 全部
   选择脚本日志的输出等级，低于所选等级的日志将全部输出。
+
+  [开关说明] 本模块在上游参数之外提供 env_schema 开关：每个候选值一个 Toggle。同一组内只认「恰好一个为开」的选项；全关或多开时回到 compat_arguments 中的默认值（Host.OverseaVideo/Host.BStar/Host.PCDN/Host.MCDN 默认 upos-sz-mirrorali.bilivideo.com / upos-sz-mirrorali.bilivideo.com / upos-sz-mirrorali.bilivideo.com / proxy-tf-all-ws.bilivideo.com，Storage 默认 Argument，LogLevel 默认 WARN）。
+  [实现] 开关值经 ctx.env 读取，由生成版脚本写入 $argument 并在请求脚本中执行原 url_rewrites 的主机替换；本模块不再使用静态 url_rewrites，MITM 范围与上游一致。
+env_schema:
+  Bili_OverseaVideo__upos_sz_mirrorali_bilivideo_com:
+    name: upos-sz-mirrorali.bilivideo.com
+    description: 归属 OverseaVideo CDN（港澳台）（Host.OverseaVideo）。该组内只有恰好一个开关为开时，才使用本项；全关或多开时沿用上游默认值 upos-sz-mirrorali.bilivideo.com。
+    options:
+    - 'true'
+    - 'false'
+  Bili_OverseaVideo__upos_sz_mirrorcos_bilivideo_com:
+    name: upos-sz-mirrorcos.bilivideo.com
+    description: 归属 OverseaVideo CDN（港澳台）（Host.OverseaVideo）。该组内只有恰好一个开关为开时，才使用本项；全关或多开时沿用上游默认值 upos-sz-mirrorali.bilivideo.com。
+    options:
+    - 'true'
+    - 'false'
+  Bili_OverseaVideo__upos_sz_mirrorhw_bilivideo_com:
+    name: upos-sz-mirrorhw.bilivideo.com
+    description: 归属 OverseaVideo CDN（港澳台）（Host.OverseaVideo）。该组内只有恰好一个开关为开时，才使用本项；全关或多开时沿用上游默认值 upos-sz-mirrorali.bilivideo.com。
+    options:
+    - 'true'
+    - 'false'
+  Bili_OverseaVideo__upos_sz_mirrorhwo1_bilivideo_com:
+    name: upos-sz-mirrorhwo1.bilivideo.com
+    description: 归属 OverseaVideo CDN（港澳台）（Host.OverseaVideo）。该组内只有恰好一个开关为开时，才使用本项；全关或多开时沿用上游默认值 upos-sz-mirrorali.bilivideo.com。
+    options:
+    - 'true'
+    - 'false'
+  Bili_OverseaVideo__upos_sz_mirror08c_bilivideo_com:
+    name: upos-sz-mirror08c.bilivideo.com
+    description: 归属 OverseaVideo CDN（港澳台）（Host.OverseaVideo）。该组内只有恰好一个开关为开时，才使用本项；全关或多开时沿用上游默认值 upos-sz-mirrorali.bilivideo.com。
+    options:
+    - 'true'
+    - 'false'
+  Bili_OverseaVideo__upos_sz_mirroraliov_bilivideo_com:
+    name: upos-sz-mirroraliov.bilivideo.com
+    description: 归属 OverseaVideo CDN（港澳台）（Host.OverseaVideo）。该组内只有恰好一个开关为开时，才使用本项；全关或多开时沿用上游默认值 upos-sz-mirrorali.bilivideo.com。
+    options:
+    - 'true'
+    - 'false'
+  Bili_OverseaVideo__upos_sz_mirrorcosov_bilivideo_com:
+    name: upos-sz-mirrorcosov.bilivideo.com
+    description: 归属 OverseaVideo CDN（港澳台）（Host.OverseaVideo）。该组内只有恰好一个开关为开时，才使用本项；全关或多开时沿用上游默认值 upos-sz-mirrorali.bilivideo.com。
+    options:
+    - 'true'
+    - 'false'
+  Bili_OverseaVideo__upos_sz_mirrorhwov_bilivideo_com:
+    name: upos-sz-mirrorhwov.bilivideo.com
+    description: 归属 OverseaVideo CDN（港澳台）（Host.OverseaVideo）。该组内只有恰好一个开关为开时，才使用本项；全关或多开时沿用上游默认值 upos-sz-mirrorali.bilivideo.com。
+    options:
+    - 'true'
+    - 'false'
+  Bili_OverseaVideo__cn_hk_eq_01_01_bilivideo_com:
+    name: cn-hk-eq-01-01.bilivideo.com
+    description: 归属 OverseaVideo CDN（港澳台）（Host.OverseaVideo）。该组内只有恰好一个开关为开时，才使用本项；全关或多开时沿用上游默认值 upos-sz-mirrorali.bilivideo.com。
+    options:
+    - 'true'
+    - 'false'
+  Bili_OverseaVideo__cn_hk_eq_01_03_bilivideo_com:
+    name: cn-hk-eq-01-03.bilivideo.com
+    description: 归属 OverseaVideo CDN（港澳台）（Host.OverseaVideo）。该组内只有恰好一个开关为开时，才使用本项；全关或多开时沿用上游默认值 upos-sz-mirrorali.bilivideo.com。
+    options:
+    - 'true'
+    - 'false'
+  Bili_OverseaVideo__cn_hk_eq_01_09_bilivideo_com:
+    name: cn-hk-eq-01-09.bilivideo.com
+    description: 归属 OverseaVideo CDN（港澳台）（Host.OverseaVideo）。该组内只有恰好一个开关为开时，才使用本项；全关或多开时沿用上游默认值 upos-sz-mirrorali.bilivideo.com。
+    options:
+    - 'true'
+    - 'false'
+  Bili_OverseaVideo__cn_hk_eq_01_10_bilivideo_com:
+    name: cn-hk-eq-01-10.bilivideo.com
+    description: 归属 OverseaVideo CDN（港澳台）（Host.OverseaVideo）。该组内只有恰好一个开关为开时，才使用本项；全关或多开时沿用上游默认值 upos-sz-mirrorali.bilivideo.com。
+    options:
+    - 'true'
+    - 'false'
+  Bili_OverseaVideo__cn_hk_eq_01_12_bilivideo_com:
+    name: cn-hk-eq-01-12.bilivideo.com
+    description: 归属 OverseaVideo CDN（港澳台）（Host.OverseaVideo）。该组内只有恰好一个开关为开时，才使用本项；全关或多开时沿用上游默认值 upos-sz-mirrorali.bilivideo.com。
+    options:
+    - 'true'
+    - 'false'
+  Bili_OverseaVideo__cn_hk_eq_01_13_bilivideo_com:
+    name: cn-hk-eq-01-13.bilivideo.com
+    description: 归属 OverseaVideo CDN（港澳台）（Host.OverseaVideo）。该组内只有恰好一个开关为开时，才使用本项；全关或多开时沿用上游默认值 upos-sz-mirrorali.bilivideo.com。
+    options:
+    - 'true'
+    - 'false'
+  Bili_OverseaVideo__cn_hk_eq_01_14_bilivideo_com:
+    name: cn-hk-eq-01-14.bilivideo.com
+    description: 归属 OverseaVideo CDN（港澳台）（Host.OverseaVideo）。该组内只有恰好一个开关为开时，才使用本项；全关或多开时沿用上游默认值 upos-sz-mirrorali.bilivideo.com。
+    options:
+    - 'true'
+    - 'false'
+  Bili_BStar__upos_sz_mirrorali_bilivideo_com:
+    name: upos-sz-mirrorali.bilivideo.com
+    description: 归属 BStar CDN（国际版）（Host.BStar）。该组内只有恰好一个开关为开时，才使用本项；全关或多开时沿用上游默认值 upos-sz-mirrorali.bilivideo.com。
+    options:
+    - 'true'
+    - 'false'
+  Bili_BStar__upos_sz_mirrorcos_bilivideo_com:
+    name: upos-sz-mirrorcos.bilivideo.com
+    description: 归属 BStar CDN（国际版）（Host.BStar）。该组内只有恰好一个开关为开时，才使用本项；全关或多开时沿用上游默认值 upos-sz-mirrorali.bilivideo.com。
+    options:
+    - 'true'
+    - 'false'
+  Bili_BStar__upos_sz_mirrorhw_bilivideo_com:
+    name: upos-sz-mirrorhw.bilivideo.com
+    description: 归属 BStar CDN（国际版）（Host.BStar）。该组内只有恰好一个开关为开时，才使用本项；全关或多开时沿用上游默认值 upos-sz-mirrorali.bilivideo.com。
+    options:
+    - 'true'
+    - 'false'
+  Bili_BStar__upos_sz_mirrorhwo1_bilivideo_com:
+    name: upos-sz-mirrorhwo1.bilivideo.com
+    description: 归属 BStar CDN（国际版）（Host.BStar）。该组内只有恰好一个开关为开时，才使用本项；全关或多开时沿用上游默认值 upos-sz-mirrorali.bilivideo.com。
+    options:
+    - 'true'
+    - 'false'
+  Bili_BStar__upos_sz_mirror08c_bilivideo_com:
+    name: upos-sz-mirror08c.bilivideo.com
+    description: 归属 BStar CDN（国际版）（Host.BStar）。该组内只有恰好一个开关为开时，才使用本项；全关或多开时沿用上游默认值 upos-sz-mirrorali.bilivideo.com。
+    options:
+    - 'true'
+    - 'false'
+  Bili_BStar__upos_sz_mirroraliov_bilivideo_com:
+    name: upos-sz-mirroraliov.bilivideo.com
+    description: 归属 BStar CDN（国际版）（Host.BStar）。该组内只有恰好一个开关为开时，才使用本项；全关或多开时沿用上游默认值 upos-sz-mirrorali.bilivideo.com。
+    options:
+    - 'true'
+    - 'false'
+  Bili_BStar__upos_sz_mirrorcosov_bilivideo_com:
+    name: upos-sz-mirrorcosov.bilivideo.com
+    description: 归属 BStar CDN（国际版）（Host.BStar）。该组内只有恰好一个开关为开时，才使用本项；全关或多开时沿用上游默认值 upos-sz-mirrorali.bilivideo.com。
+    options:
+    - 'true'
+    - 'false'
+  Bili_BStar__upos_sz_mirrorhwov_bilivideo_com:
+    name: upos-sz-mirrorhwov.bilivideo.com
+    description: 归属 BStar CDN（国际版）（Host.BStar）。该组内只有恰好一个开关为开时，才使用本项；全关或多开时沿用上游默认值 upos-sz-mirrorali.bilivideo.com。
+    options:
+    - 'true'
+    - 'false'
+  Bili_BStar__cn_hk_eq_01_01_bilivideo_com:
+    name: cn-hk-eq-01-01.bilivideo.com
+    description: 归属 BStar CDN（国际版）（Host.BStar）。该组内只有恰好一个开关为开时，才使用本项；全关或多开时沿用上游默认值 upos-sz-mirrorali.bilivideo.com。
+    options:
+    - 'true'
+    - 'false'
+  Bili_BStar__cn_hk_eq_01_03_bilivideo_com:
+    name: cn-hk-eq-01-03.bilivideo.com
+    description: 归属 BStar CDN（国际版）（Host.BStar）。该组内只有恰好一个开关为开时，才使用本项；全关或多开时沿用上游默认值 upos-sz-mirrorali.bilivideo.com。
+    options:
+    - 'true'
+    - 'false'
+  Bili_BStar__cn_hk_eq_01_09_bilivideo_com:
+    name: cn-hk-eq-01-09.bilivideo.com
+    description: 归属 BStar CDN（国际版）（Host.BStar）。该组内只有恰好一个开关为开时，才使用本项；全关或多开时沿用上游默认值 upos-sz-mirrorali.bilivideo.com。
+    options:
+    - 'true'
+    - 'false'
+  Bili_BStar__cn_hk_eq_01_10_bilivideo_com:
+    name: cn-hk-eq-01-10.bilivideo.com
+    description: 归属 BStar CDN（国际版）（Host.BStar）。该组内只有恰好一个开关为开时，才使用本项；全关或多开时沿用上游默认值 upos-sz-mirrorali.bilivideo.com。
+    options:
+    - 'true'
+    - 'false'
+  Bili_BStar__cn_hk_eq_01_12_bilivideo_com:
+    name: cn-hk-eq-01-12.bilivideo.com
+    description: 归属 BStar CDN（国际版）（Host.BStar）。该组内只有恰好一个开关为开时，才使用本项；全关或多开时沿用上游默认值 upos-sz-mirrorali.bilivideo.com。
+    options:
+    - 'true'
+    - 'false'
+  Bili_BStar__cn_hk_eq_01_13_bilivideo_com:
+    name: cn-hk-eq-01-13.bilivideo.com
+    description: 归属 BStar CDN（国际版）（Host.BStar）。该组内只有恰好一个开关为开时，才使用本项；全关或多开时沿用上游默认值 upos-sz-mirrorali.bilivideo.com。
+    options:
+    - 'true'
+    - 'false'
+  Bili_BStar__cn_hk_eq_01_14_bilivideo_com:
+    name: cn-hk-eq-01-14.bilivideo.com
+    description: 归属 BStar CDN（国际版）（Host.BStar）。该组内只有恰好一个开关为开时，才使用本项；全关或多开时沿用上游默认值 upos-sz-mirrorali.bilivideo.com。
+    options:
+    - 'true'
+    - 'false'
+  Bili_PCDN__upos_sz_mirrorali_bilivideo_com:
+    name: upos-sz-mirrorali.bilivideo.com
+    description: 归属 PCDN 主机名（中国大陆）（Host.PCDN）。该组内只有恰好一个开关为开时，才使用本项；全关或多开时沿用上游默认值 upos-sz-mirrorali.bilivideo.com。
+    options:
+    - 'true'
+    - 'false'
+  Bili_PCDN__upos_sz_mirrorcos_bilivideo_com:
+    name: upos-sz-mirrorcos.bilivideo.com
+    description: 归属 PCDN 主机名（中国大陆）（Host.PCDN）。该组内只有恰好一个开关为开时，才使用本项；全关或多开时沿用上游默认值 upos-sz-mirrorali.bilivideo.com。
+    options:
+    - 'true'
+    - 'false'
+  Bili_PCDN__upos_sz_mirrorhw_bilivideo_com:
+    name: upos-sz-mirrorhw.bilivideo.com
+    description: 归属 PCDN 主机名（中国大陆）（Host.PCDN）。该组内只有恰好一个开关为开时，才使用本项；全关或多开时沿用上游默认值 upos-sz-mirrorali.bilivideo.com。
+    options:
+    - 'true'
+    - 'false'
+  Bili_PCDN__upos_sz_mirrorhwo1_bilivideo_com:
+    name: upos-sz-mirrorhwo1.bilivideo.com
+    description: 归属 PCDN 主机名（中国大陆）（Host.PCDN）。该组内只有恰好一个开关为开时，才使用本项；全关或多开时沿用上游默认值 upos-sz-mirrorali.bilivideo.com。
+    options:
+    - 'true'
+    - 'false'
+  Bili_PCDN__upos_sz_mirror08c_bilivideo_com:
+    name: upos-sz-mirror08c.bilivideo.com
+    description: 归属 PCDN 主机名（中国大陆）（Host.PCDN）。该组内只有恰好一个开关为开时，才使用本项；全关或多开时沿用上游默认值 upos-sz-mirrorali.bilivideo.com。
+    options:
+    - 'true'
+    - 'false'
+  Bili_PCDN__upos_sz_mirroraliov_bilivideo_com:
+    name: upos-sz-mirroraliov.bilivideo.com
+    description: 归属 PCDN 主机名（中国大陆）（Host.PCDN）。该组内只有恰好一个开关为开时，才使用本项；全关或多开时沿用上游默认值 upos-sz-mirrorali.bilivideo.com。
+    options:
+    - 'true'
+    - 'false'
+  Bili_PCDN__upos_sz_mirrorcosov_bilivideo_com:
+    name: upos-sz-mirrorcosov.bilivideo.com
+    description: 归属 PCDN 主机名（中国大陆）（Host.PCDN）。该组内只有恰好一个开关为开时，才使用本项；全关或多开时沿用上游默认值 upos-sz-mirrorali.bilivideo.com。
+    options:
+    - 'true'
+    - 'false'
+  Bili_PCDN__upos_sz_mirrorhwov_bilivideo_com:
+    name: upos-sz-mirrorhwov.bilivideo.com
+    description: 归属 PCDN 主机名（中国大陆）（Host.PCDN）。该组内只有恰好一个开关为开时，才使用本项；全关或多开时沿用上游默认值 upos-sz-mirrorali.bilivideo.com。
+    options:
+    - 'true'
+    - 'false'
+  Bili_PCDN__cn_hk_eq_01_01_bilivideo_com:
+    name: cn-hk-eq-01-01.bilivideo.com
+    description: 归属 PCDN 主机名（中国大陆）（Host.PCDN）。该组内只有恰好一个开关为开时，才使用本项；全关或多开时沿用上游默认值 upos-sz-mirrorali.bilivideo.com。
+    options:
+    - 'true'
+    - 'false'
+  Bili_PCDN__cn_hk_eq_01_03_bilivideo_com:
+    name: cn-hk-eq-01-03.bilivideo.com
+    description: 归属 PCDN 主机名（中国大陆）（Host.PCDN）。该组内只有恰好一个开关为开时，才使用本项；全关或多开时沿用上游默认值 upos-sz-mirrorali.bilivideo.com。
+    options:
+    - 'true'
+    - 'false'
+  Bili_PCDN__cn_hk_eq_01_09_bilivideo_com:
+    name: cn-hk-eq-01-09.bilivideo.com
+    description: 归属 PCDN 主机名（中国大陆）（Host.PCDN）。该组内只有恰好一个开关为开时，才使用本项；全关或多开时沿用上游默认值 upos-sz-mirrorali.bilivideo.com。
+    options:
+    - 'true'
+    - 'false'
+  Bili_PCDN__cn_hk_eq_01_10_bilivideo_com:
+    name: cn-hk-eq-01-10.bilivideo.com
+    description: 归属 PCDN 主机名（中国大陆）（Host.PCDN）。该组内只有恰好一个开关为开时，才使用本项；全关或多开时沿用上游默认值 upos-sz-mirrorali.bilivideo.com。
+    options:
+    - 'true'
+    - 'false'
+  Bili_PCDN__cn_hk_eq_01_12_bilivideo_com:
+    name: cn-hk-eq-01-12.bilivideo.com
+    description: 归属 PCDN 主机名（中国大陆）（Host.PCDN）。该组内只有恰好一个开关为开时，才使用本项；全关或多开时沿用上游默认值 upos-sz-mirrorali.bilivideo.com。
+    options:
+    - 'true'
+    - 'false'
+  Bili_PCDN__cn_hk_eq_01_13_bilivideo_com:
+    name: cn-hk-eq-01-13.bilivideo.com
+    description: 归属 PCDN 主机名（中国大陆）（Host.PCDN）。该组内只有恰好一个开关为开时，才使用本项；全关或多开时沿用上游默认值 upos-sz-mirrorali.bilivideo.com。
+    options:
+    - 'true'
+    - 'false'
+  Bili_PCDN__cn_hk_eq_01_14_bilivideo_com:
+    name: cn-hk-eq-01-14.bilivideo.com
+    description: 归属 PCDN 主机名（中国大陆）（Host.PCDN）。该组内只有恰好一个开关为开时，才使用本项；全关或多开时沿用上游默认值 upos-sz-mirrorali.bilivideo.com。
+    options:
+    - 'true'
+    - 'false'
+  Bili_MCDN__proxy_tf_all_ws_bilivideo_com:
+    name: proxy-tf-all-ws.bilivideo.com
+    description: 归属 MCDN 主机名（中国大陆）（Host.MCDN）。该组只有一个上游候选值：打开时使用 proxy-tf-all-ws.bilivideo.com，关闭时沿用上游默认值 proxy-tf-all-ws.bilivideo.com。
+    options:
+    - 'true'
+    - 'false'
+  Bili_Storage__argument:
+    name: Argument
+    description: 归属 配置来源（Storage）。该组内只有恰好一个开关为开时，才使用本项；全关或多开时沿用上游默认值 Argument。
+    options:
+    - 'true'
+    - 'false'
+  Bili_Storage__persistentstore:
+    name: PersistentStore
+    description: 归属 配置来源（Storage）。该组内只有恰好一个开关为开时，才使用本项；全关或多开时沿用上游默认值 Argument。
+    options:
+    - 'true'
+    - 'false'
+  Bili_Storage__database:
+    name: database
+    description: 归属 配置来源（Storage）。该组内只有恰好一个开关为开时，才使用本项；全关或多开时沿用上游默认值 Argument。
+    options:
+    - 'true'
+    - 'false'
+  Bili_LogLevel__off:
+    name: 'OFF'
+    description: 归属 日志等级（LogLevel）。该组内只有恰好一个开关为开时，才使用本项；全关或多开时沿用上游默认值 WARN。
+    options:
+    - 'true'
+    - 'false'
+  Bili_LogLevel__error:
+    name: ERROR
+    description: 归属 日志等级（LogLevel）。该组内只有恰好一个开关为开时，才使用本项；全关或多开时沿用上游默认值 WARN。
+    options:
+    - 'true'
+    - 'false'
+  Bili_LogLevel__warn:
+    name: WARN
+    description: 归属 日志等级（LogLevel）。该组内只有恰好一个开关为开时，才使用本项；全关或多开时沿用上游默认值 WARN。
+    options:
+    - 'true'
+    - 'false'
+  Bili_LogLevel__info:
+    name: INFO
+    description: 归属 日志等级（LogLevel）。该组内只有恰好一个开关为开时，才使用本项；全关或多开时沿用上游默认值 WARN。
+    options:
+    - 'true'
+    - 'false'
+  Bili_LogLevel__debug:
+    name: DEBUG
+    description: 归属 日志等级（LogLevel）。该组内只有恰好一个开关为开时，才使用本项；全关或多开时沿用上游默认值 WARN。
+    options:
+    - 'true'
+    - 'false'
+  Bili_LogLevel__all:
+    name: ALL
+    description: 归属 日志等级（LogLevel）。该组内只有恰好一个开关为开时，才使用本项；全关或多开时沿用上游默认值 WARN。
+    options:
+    - 'true'
+    - 'false'
 open_url: http://boxjs.com/#/app/BiliBili.Redirect
 author: VirgilClyne[https://github.com/VirgilClyne]
 homepage: https://biliverse.github.io/guide/redirect
 icon: https://github.com/Biliverse/Redirect/raw/main/src/assets/icon_rounded.png
 dns: {}
-url_rewrites:
-- match: ^http:\/\/upos-sz-mirror[a-z0-9-]*ov\.bilivideo\.com(?::80)?\/upgcxcode\/
-  location: http://{{{Host.OverseaVideo}}}/upgcxcode/
-- match: ^http:\/\/cn-hk-eq-[a-z0-9-]+\.bilivideo\.com(?::80)?\/upgcxcode\/
-  location: http://{{{Host.OverseaVideo}}}/upgcxcode/
-- match: ^http:\/\/upos-hz-mirrorakam\.akamaized\.net(?::80)?\/upgcxcode\/
-  location: http://{{{Host.OverseaVideo}}}/upgcxcode/
-- match: ^http:\/\/upos-sz-mirrorakam\.akamaized\.net(?::80)?\/upgcxcode\/
-  location: http://{{{Host.OverseaVideo}}}/upgcxcode/
-- match: ^http:\/\/upos-sz-mirror[a-z0-9-]*bstar1\.bilivideo\.com(?::80)?\/upgcxcode\/
-  location: http://{{{Host.BStar}}}/upgcxcode/
-- match: ^http:\/\/upos-bstar1-mirrorakam\.akamaized\.net(?::80)?\/upgcxcode\/
-  location: http://{{{Host.BStar}}}/upgcxcode/
-- match: ^https:\/\/upos-sz-mirror[a-z0-9-]*ov\.bilivideo\.com(?::(?:443|4483))?\/upgcxcode\/
-  location: https://{{{Host.OverseaVideo}}}/upgcxcode/
-- match: ^https:\/\/cn-hk-eq-[a-z0-9-]+\.bilivideo\.com(?::(?:443|4483))?\/upgcxcode\/
-  location: https://{{{Host.OverseaVideo}}}/upgcxcode/
-- match: ^https:\/\/upos-hz-mirrorakam\.akamaized\.net(?::(?:443|4483))?\/upgcxcode\/
-  location: https://{{{Host.OverseaVideo}}}/upgcxcode/
-- match: ^https:\/\/upos-sz-mirrorakam\.akamaized\.net(?::(?:443|4483))?\/upgcxcode\/
-  location: https://{{{Host.OverseaVideo}}}/upgcxcode/
-- match: ^https:\/\/upos-sz-mirror[a-z0-9-]*bstar1\.bilivideo\.com(?::(?:443|4483))?\/upgcxcode\/
-  location: https://{{{Host.BStar}}}/upgcxcode/
-- match: ^https:\/\/upos-bstar1-mirrorakam\.akamaized\.net(?::(?:443|4483))?\/upgcxcode\/
-  location: https://{{{Host.BStar}}}/upgcxcode/
-map_locals:
-- match: ^https:\/\/(?:biliverse\.github\.io|app\.bilibili\.com)\/api\/Redirect(?:\?.*)?$
-  to: https://github.com/Biliverse/Redirect/releases/download/v0.2.25/BiliBili.Redirect.boxjs.json
-  status_code: 200
-  headers:
-    Content-Type: application/json; charset=utf-8
-    Cache-Control: no-store
-    X-PreferencePanes-Version: 0.2.25
 scriptings:
 - http_request:
     name: 📺 BiliBili.Redirect.CDN.upgcxcode.m4s
     match: ^https?:\/\/.+\.bilivideo\.com(?::(?:80|443|4483))?\/upgcxcode\/
-    script_url: https://github.com/Biliverse/Redirect/releases/download/v0.2.25/request.bundle.js
+    script_url: https://raw.githubusercontent.com/a13609y/egern-modules-hub/main/rules/bilibili-redirect/bilibili-redirect.bundle.js
     env:
       _compat.$argument: Host.OverseaVideo="{{{Host.OverseaVideo}}}"&Host.BStar="{{{Host.BStar}}}"&Host.PCDN="{{{Host.PCDN}}}"&Host.MCDN="{{{Host.MCDN}}}"&Storage="{{{Storage}}}"&LogLevel="{{{LogLevel}}}"
 - http_request:
     name: 📺 BiliBili.Redirect.MCDN.v1.resource.m4s
     match: ^https?:\/\/[adbcefxy0-9]+\.mcdn\.bilivideo\.cn(?::(?:8000|8082))?\/v1\/resource\/
-    script_url: https://github.com/Biliverse/Redirect/releases/download/v0.2.25/request.bundle.js
+    script_url: https://raw.githubusercontent.com/a13609y/egern-modules-hub/main/rules/bilibili-redirect/bilibili-redirect.bundle.js
     env:
       _compat.$argument: Host.OverseaVideo="{{{Host.OverseaVideo}}}"&Host.BStar="{{{Host.BStar}}}"&Host.PCDN="{{{Host.PCDN}}}"&Host.MCDN="{{{Host.MCDN}}}"&Storage="{{{Storage}}}"&LogLevel="{{{LogLevel}}}"
 - http_request:
     name: 📺 BiliBili.Redirect.MCDN.upgcxcode.m4s
     match: ^https?:\/\/[adbcefxy0-9]+\.mcdn\.bilivideo\.cn(?::(?:4483|9102))?\/upgcxcode\/
-    script_url: https://github.com/Biliverse/Redirect/releases/download/v0.2.25/request.bundle.js
+    script_url: https://raw.githubusercontent.com/a13609y/egern-modules-hub/main/rules/bilibili-redirect/bilibili-redirect.bundle.js
     env:
       _compat.$argument: Host.OverseaVideo="{{{Host.OverseaVideo}}}"&Host.BStar="{{{Host.BStar}}}"&Host.PCDN="{{{Host.PCDN}}}"&Host.MCDN="{{{Host.MCDN}}}"&Storage="{{{Storage}}}"&LogLevel="{{{LogLevel}}}"
 - http_request:
     name: 📺 BiliBili.Redirect.PCDN.upgcxcode.m4s
     match: ^https?:\/\/(.+):4480\/upgcxcode\/
-    script_url: https://github.com/Biliverse/Redirect/releases/download/v0.2.25/request.bundle.js
+    script_url: https://raw.githubusercontent.com/a13609y/egern-modules-hub/main/rules/bilibili-redirect/bilibili-redirect.bundle.js
     env:
       _compat.$argument: Host.OverseaVideo="{{{Host.OverseaVideo}}}"&Host.BStar="{{{Host.BStar}}}"&Host.PCDN="{{{Host.PCDN}}}"&Host.MCDN="{{{Host.MCDN}}}"&Storage="{{{Storage}}}"&LogLevel="{{{LogLevel}}}"
 - http_request:
     name: 📺 BiliBili.Redirect.Akamaized.hz.upgcxcode.m4s
     match: ^https?:\/\/upos-hz-mirrorakam\.akamaized\.net(?::(?:80|443|4483))?\/upgcxcode\/
-    script_url: https://github.com/Biliverse/Redirect/releases/download/v0.2.25/request.bundle.js
+    script_url: https://raw.githubusercontent.com/a13609y/egern-modules-hub/main/rules/bilibili-redirect/bilibili-redirect.bundle.js
     env:
       _compat.$argument: Host.OverseaVideo="{{{Host.OverseaVideo}}}"&Host.BStar="{{{Host.BStar}}}"&Host.PCDN="{{{Host.PCDN}}}"&Host.MCDN="{{{Host.MCDN}}}"&Storage="{{{Storage}}}"&LogLevel="{{{LogLevel}}}"
 - http_request:
     name: 📺 BiliBili.Redirect.Akamaized.sz.upgcxcode.m4s
     match: ^https?:\/\/upos-sz-mirrorakam\.akamaized\.net(?::(?:80|443|4483))?\/upgcxcode\/
-    script_url: https://github.com/Biliverse/Redirect/releases/download/v0.2.25/request.bundle.js
+    script_url: https://raw.githubusercontent.com/a13609y/egern-modules-hub/main/rules/bilibili-redirect/bilibili-redirect.bundle.js
     env:
       _compat.$argument: Host.OverseaVideo="{{{Host.OverseaVideo}}}"&Host.BStar="{{{Host.BStar}}}"&Host.PCDN="{{{Host.PCDN}}}"&Host.MCDN="{{{Host.MCDN}}}"&Storage="{{{Storage}}}"&LogLevel="{{{LogLevel}}}"
 - http_request:
     name: 📺 BiliBili.Redirect.Akamaized.bstar1.upgcxcode.m4s
     match: ^https?:\/\/upos-bstar1-mirrorakam\.akamaized\.net(?::(?:80|443|4483))?\/upgcxcode\/
-    script_url: https://github.com/Biliverse/Redirect/releases/download/v0.2.25/request.bundle.js
+    script_url: https://raw.githubusercontent.com/a13609y/egern-modules-hub/main/rules/bilibili-redirect/bilibili-redirect.bundle.js
     env:
       _compat.$argument: Host.OverseaVideo="{{{Host.OverseaVideo}}}"&Host.BStar="{{{Host.BStar}}}"&Host.PCDN="{{{Host.PCDN}}}"&Host.MCDN="{{{Host.MCDN}}}"&Storage="{{{Storage}}}"&LogLevel="{{{LogLevel}}}"
 mitm:

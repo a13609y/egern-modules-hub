@@ -1,0 +1,47 @@
+BiliBili Redirect (Egern module) — a13609y/egern-modules-hub
+============================================================
+
+This product includes software derived from Biliverse/Redirect
+(https://github.com/Biliverse/Redirect), Copyright the Biliverse/Redirect
+contributors, licensed under the Apache License, Version 2.0.
+
+Upstream files incorporated in this directory:
+
+  BiliBili.Redirect.yaml  (release asset v0.2.25)  →  bilibili-redirect.yaml
+  request.bundle.js       (release asset v0.2.25)  →  bilibili-redirect.bundle.js
+
+Modifications (Apache License 2.0, section 4(b) — statement of changes):
+
+  * bilibili-redirect.bundle.js is the upstream request.bundle.js embedded
+    verbatim inside a generated Egern wrapper (export default async (ctx)).
+    The wrapper adds, before the upstream code runs:
+      - an env_schema Toggle bridge that reads ctx.env, resolves the effective
+        Host.OverseaVideo / Host.BStar / Host.PCDN / Host.MCDN / Storage /
+        LogLevel values (exactly one Toggle per group selected, otherwise the
+        upstream compat_arguments default), and writes them to
+        globalThis.$argument in the upstream's own query-string format;
+      - globalThis.$request built from ctx.request, and a
+        globalThis.$persistentStore shim backed by ctx.storage;
+      - an equivalent re-implementation of the four upstream host classes
+        declared in url_rewrites, applied as a host/port-only substitution
+        (scheme, path, query untouched) on the incoming and returned request;
+      - the upstream $done(result) is captured and returned to Egern using the
+        documented request-script return contract.
+    The upstream bundled code itself is unmodified; no upstream line was
+    edited, removed or reordered.
+
+  * bilibili-redirect.yaml is generated from the upstream module YAML:
+    name/description/compat_arguments/compat_arguments_desc/icon/homepage/
+    author/open_url/mitm are taken from upstream (description and
+    compat_arguments_desc get an appended note about the added Toggles),
+    scriptings keep the upstream match/name and point at the generated bundle
+    with the upstream {{{...}}} env preserved as a fallback, url_rewrites are
+    replaced by the equivalent in-script substitution described above, and a
+    new env_schema section declares one Toggle per upstream candidate value.
+
+  * sync.py, test.mjs, README.md, NOTICE are new files by
+    a13609y/egern-modules-hub (Apache License 2.0, same license as upstream).
+
+No trademark rights are granted. "BiliBili", "哔哩哔哩" and the CDN hostnames
+are used only descriptively; this repository is not affiliated with or
+endorsed by Biliverse/Redirect or BiliBili.
