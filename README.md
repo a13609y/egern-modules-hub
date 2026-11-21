@@ -12,6 +12,7 @@ widgets/            小组件类模块（generic 脚本 + widgets 声明）
 ├── oil-price/      全国实时油价（小/中/大号三套布局）
 ├── holiday-countdown/ 节日倒数（春节/中秋/国庆…，内置农历表）
 ├── sticky-note/     便签（文字自定义 + 9 种纸张样式）
+├── rewrite-observer-network-baseline/ Rewrite Observer 网络基线（非 unified rewrites 验证）
 ├── ...
 rules/              规则 / URL 重写 / MITM / http_response 类模块
 ├── general-enhanced/ 通用增强（合一版：绕过隧道 + 真实 IP + MITM 排除，跟随上游）
@@ -39,6 +40,7 @@ docs/               说明与踩坑记录
 | [全国实时油价](widgets/oil-price/README.md) | 92/95/98/柴油实时油价，小/中/大号三套布局（居中四油品 2×2 田字格 / 四油品+走势折线 / 完整信息+加满金额）；走势只用真实抓取记录（站点无逐轮历史价格，不画推测曲线），下轮窗口按 10 个工作日推算 | `https://raw.githubusercontent.com/a13609y/egern-modules-hub/main/widgets/oil-price/oil-price.yaml` |
 | [节日倒数](widgets/holiday-countdown/README.md) | 距离下个节日还有几天，内置 2024–2050 农历与节气表，按画布自动排版 | `https://raw.githubusercontent.com/a13609y/egern-modules-hub/main/widgets/holiday-countdown/holiday-countdown.yaml` |
 | [便签](widgets/sticky-note/README.md) | 桌面便签，文字自己填（标题 + 8 行 + 页脚），9 种纸张样式、颜色/装饰/横线/字体/对齐可调 | `https://raw.githubusercontent.com/a13609y/egern-modules-hub/main/widgets/sticky-note/sticky-note.yaml` |
+| [Rewrite Observer Network Baseline](widgets/rewrite-observer-network-baseline/README.md) | `ctx.http.get()` 网络基线小组件；**不含未经核实的 unified `rewrites` 语法，不宣称 rewrite 已验证** | `https://raw.githubusercontent.com/a13609y/egern-modules-hub/main/widgets/rewrite-observer-network-baseline/rewrite-observer-network-baseline.yaml` |
 | [通用增强（合一版）](rules/general-enhanced/README.md) | 三合一：私有网段/组播不走隧道 + 门户检测/STUN/联机/NTP/推送/NAS 等用真实 IP（每天跟随上游聚合）+ MITM 排除 | `https://raw.githubusercontent.com/a13609y/egern-modules-hub/main/rules/general-enhanced/general-enhanced.yaml` |
 | [酷安去广告](rules/coolapk/README.md) | 去酷安开屏 / 首页信息流 / 评论 / 商品推广广告，规则与脚本自动跟随上游 | `https://raw.githubusercontent.com/a13609y/egern-modules-hub/main/rules/coolapk/coolapk.yaml` |
 | [Pinterest 去广告](rules/pinterest/README.md) | 去 Pinterest 信息流、搜索、相关推荐里的推广 Pin，拦广告与点击追踪域名 | `https://raw.githubusercontent.com/a13609y/egern-modules-hub/main/rules/pinterest/pinterest.yaml` |
