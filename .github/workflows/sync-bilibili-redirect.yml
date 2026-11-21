@@ -1,0 +1,69 @@
+name: sync-bilibili-redirect
+
+on:
+  schedule:
+    - cron: "17 4 * * *" # 每天 04:17 UTC 查询 Biliverse Releases
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: sync-bilibili-redirect
+  cancel-in-progress: true
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 获取上游原生 Egern 模块
+        id: upstream
+        env:
+          API_URL: https://api.github.com/repos/Biliverse/Redirect/releases/latest
+        run: |
+          set -euo pipefail
+          tag="$(curl --fail --silent --show-error --retry 3 "$API_URL" | python3 -c 'import json,sys; print(json.load(sys.stdin)["tag_name"])')"
+          test -n "$tag"
+          url="https://github.com/Biliverse/Redirect/releases/download/${tag}/BiliBili.Redirect.yaml"
+          curl --fail --silent --show-error --location --retry 3 "$url" -o rules/bilibili-redirect/bilibili-redirect.yaml
+          test -s rules/bilibili-redirect/bilibili-redirect.yaml
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+
+      - name: 静态校验原样镜像
+        env:
+          TAG: ${{ steps.upstream.outputs.tag }}
+        run: |
+          set -euo pipefail
+          python3 -m pip install --quiet --disable-pip-version-check pyyaml==6.0.2
+          python3 - <<'PY'
+          import os, re, yaml
+          path = 'rules/bilibili-redirect/bilibili-redirect.yaml'
+          text = open(path, encoding='utf-8').read()
+          assert text.strip(), 'YAML 为空'
+          data = yaml.safe_load(text)
+          for key in ('name', 'compat_arguments', 'url_rewrites', 'map_locals', 'scriptings', 'mitm'):
+              assert data.get(key), f'缺少或为空: {key}'
+          urls = re.findall(r'https?://[^\s"\']*request\.bundle\.js', text)
+          assert urls, 'request.bundle.js URL 为零'
+          expected = f'https://github.com/Biliverse/Redirect/releases/download/{os.environ["TAG"]}/request.bundle.js'
+          assert set(urls) == {expected}, f'脚本 tag 不一致: {set(urls)}'
+          print(f'module ok: {data["name"]}; {len(urls)} script URLs; tag={os.environ["TAG"]}')
+          PY
+
+      - name: 提交变化
+        env:
+          TAG: ${{ steps.upstream.outputs.tag }}
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if [ -n "$(git status --porcelain rules/bilibili-redirect/bilibili-redirect.yaml)" ]; then
+            git add rules/bilibili-redirect/bilibili-redirect.yaml
+            git commit -m "chore(bilibili-redirect): sync upstream ${TAG}"
+            git push origin HEAD:main
+            echo "::notice::已同步 Biliverse/Redirect ${TAG}"
+          else
+            echo "上游无内容变化（${TAG}）"
+          fi
