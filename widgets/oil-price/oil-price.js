@@ -1,5 +1,5 @@
 /**
- * ⛽ 全国实时油价小组件 v4.7.0（Egern 模块版 · 预测统一元/升 + 四油品区间（汽油/柴油密度换算）/ 中号右栏三块 36pt 铺满 / 三尺寸预测文案精简）
+ * ⛽ 全国实时油价小组件 v4.7.1（Egern 模块版 · 真机截图回归：卡内文本对称居中 / 图表等宽居中 / 小号预测带标签居中） · 预测统一元/升 + 四油品区间（汽油/柴油密度换算）/ 中号右栏三块 36pt 铺满 / 三尺寸预测文案精简）
  *
  * 现价源：http://m.qiyoujiage.com/（省份 / 城市页面）
  * 历史源：BesFuel（https://github.com/BensonLaur/BesFuel）已核实的发改委调价历史（元/升，真实节点）
@@ -779,7 +779,7 @@ export default async function (ctx) {
       saveBudget("reserved", 0);                   // 先落预算再发请求：中途失败也算今天已用
       let resp = null, body = null, status = 0;
       try {
-        const headers = { "content-type": "application/json", accept: "application/json", "user-agent": "EgernOilWidget/4.7.0" };
+        const headers = { "content-type": "application/json", accept: "application/json", "user-agent": "EgernOilWidget/4.7.1" };
         if (OIL_KEY) headers.authorization = `Bearer ${OIL_KEY}`;
         resp = await ctx.http.post(FC_URL, { headers, body: { province: cnProv }, timeout: 8000 });
         status = resp ? resp.status : 0;
@@ -962,7 +962,7 @@ export default async function (ctx) {
   //    所以内容可用高度 = height - 上下 padding；所有固定高度都按此核算预算。
   //    禁止同一节点同时给 flex 与 height（会导致卡片被拉伸压到标题行上）。
   // ════════════════════════════════════════════════════════════
-  // ── 布局工具（v4.7.0 自适应重排）────────────────────────────
+  // ── 布局工具（v4.7.0 自适应重排 / v4.7.1 真机回归修整）────────
   //  官方 Widget DSL 事实（egernapp.com/zh-CN/docs/configuration/widgets）：
   //   · stack / image 的 width 省略（或 0）= 宽度不受限；
   //   · flex = 按比例分配「父容器剩余空间」，未设 flex 的子元素保持自然尺寸；
@@ -1000,6 +1000,23 @@ export default async function (ctx) {
   // 文本盒：行 + flex:1 文本 → 文本拿到父容器剩余宽度（可换行 / 可 minScale 缩字）
   const fitText = (p, o) => ROW([{ type: "text", ...p, flex: 1 }], { gap: 0, align: (o && o.align) || "center", h: o && o.h });
 
+  // ── v4.7.1 真机回归（截图证据）──────────────────────────────
+  //  真机截图证明：把文本塞进 flex:1 的文本盒后，textAlign:'center' 在实际渲染里不生效
+  //  （行被撑到整宽、字仍然贴左），并且文本盒会跟着父列吃掉剩余高度，导致卡内
+  //  标签贴顶、价格贴底。官方 DSL 里唯一被文档明确支持的居中手段是「省略 length 的 spacer」：
+  //  文档「spacer：length 固定长度。省略时为弹性 spacer，自动填充剩余空间」，
+  //  同一行放两个省略 length 的 spacer → 剩余宽度被这两段等分，紧凑文本自然落在正中；
+  //  同一列上下各放一个 → 剩余高度等分，紧凑文本组垂直居中（本模块旧卡已是这一结构，
+  //  真机截图确认上下留白相等，故等分行为已被真机证据确认）。
+  //  因此下面所有居中行一律是 [spacer, 文本(不设 flex、自然宽度), spacer]，不再用 flex 文本 + textAlign。
+  const centeredRow = (node, o) => {
+    const opt = o || {};
+    const t = { ...node };
+    delete t.flex;
+    return ROW([{ type: "spacer" }, t, { type: "spacer" }],
+      { gap: opt.gap === undefined ? 0 : opt.gap, align: opt.align || "center", ...(opt.h ? { h: opt.h } : {}) });
+  };
+
   // 分隔线：弹性 spacer 撑满整宽 / 固定 1pt 竖线
   const hDivider = { type: "stack", height: 1, backgroundColor: COLORS.cardBorder, children: [{ type: "spacer" }] };
   const vDivider = (h) => ({ type: "stack", width: 1, height: h, backgroundColor: COLORS.cardBorder, children: [{ type: "spacer" }] });
@@ -1018,12 +1035,12 @@ export default async function (ctx) {
     ], { gap: o.gap === undefined ? 4 : o.gap, h: o.h, align: "center" });
   }
 
-  // 小号油价卡：flex:1 均分整行（不再写死 66pt），卡内文本由容器宽度决定
+  // 小号油价卡：flex:1 均分整行（不再写死 66pt），卡内「标签 + 价格」作为一个紧凑文本组居中
   function fuelCard(row, o) {
     return COL([
       { type: "spacer" },
-      fitText({ text: row.label, font: { size: o.labelSize, weight: "bold" }, textColor: row.color, maxLines: 1, minScale: 0.8, textAlign: "center" }),
-      fitText({ text: fmt(row.price), font: { size: o.priceSize, weight: "bold" }, textColor: COLORS.primary, maxLines: 1, minScale: 0.55, textAlign: "center" }),
+      centeredRow({ type: "text", text: row.label, font: { size: o.labelSize, weight: "bold" }, textColor: row.color, maxLines: 1 }),
+      centeredRow({ type: "text", text: fmt(row.price), font: { size: o.priceSize, weight: "bold" }, textColor: COLORS.primary, maxLines: 1 }),
       { type: "spacer" },
     ], { align: "center", h: o.h, gap: o.gap === undefined ? 1 : o.gap, pad: o.padding, bg: tint(row.color, "1F"), radius: o.radius, flex: 1 });
   }
@@ -1078,10 +1095,15 @@ export default async function (ctx) {
     const GAP = 6, CELL_H = 46, ROW_GAP = 5, FOOT_H = 13;
     const cardOpt = { h: CELL_H, labelSize: 10, priceSize: 16, radius: 10, padding: [2, 2, 2, 2], gap: 1 };
     const gridRow = (a, b) => ROW([fuelCard(a, cardOpt), fuelCard(b, cardOpt)], { gap: GAP, h: CELL_H, align: "center" });
-    // 底部行：只写「方向 + 数值/区间」，整宽居中
+    // 底部行：「预测 + 方向 + 数值/区间」保持一行，紧凑组整行居中（双弹性 spacer 等分左右）
     const footNode = ROW([
-      { type: "text", text: fcPlain, flex: 1, font: { size: 10, weight: "semibold" }, textColor: fcColor, maxLines: 1, minScale: 0.6, textAlign: "center" },
-    ], { gap: 2, h: FOOT_H, align: "center" });
+      { type: "spacer" },
+      ROW([
+        { type: "text", text: "预测", font: { size: 8.5 }, textColor: COLORS.tertiary, maxLines: 1 },
+        { type: "text", text: fcPlain, font: { size: 10, weight: "semibold" }, textColor: fcColor, maxLines: 1 },
+      ], { gap: 3, align: "center" }),
+      { type: "spacer" },
+    ], { gap: 0, h: FOOT_H, align: "center" });
     return {
       type: "widget",
       padding: [9, 10, 9, 10], gap: 6, backgroundColor, refreshAfter: refreshTime,
@@ -1089,7 +1111,7 @@ export default async function (ctx) {
         headerNode({
           h: 18, icon: 13, title: 12.5, time: 9.5, clock: 9, gap: 3,
           text: `${regionName || "全国"}油价`,
-          timeText: `${hasAnyPrice ? "更新 " : ""}${timeStr}${hasCache && fetchError ? " · 缓存" : ""}`,
+          timeText: `${timeStr}${hasCache && fetchError ? " · 缓存" : ""}`,
         }),
         hasAnyPrice
           ? COL([
@@ -1109,10 +1131,10 @@ export default async function (ctx) {
   function fuelCardML(row, o) {
     return COL([
       { type: "spacer" },
-      fitText({ text: row.label, font: { size: o.labelSize, weight: "bold" }, textColor: row.color, maxLines: 1, minScale: 0.8, textAlign: "center" }),
-      fitText({ text: fmt(row.price), font: { size: o.priceSize, weight: "bold" }, textColor: COLORS.primary, maxLines: 1, minScale: 0.6, textAlign: "center" }),
+      centeredRow({ type: "text", text: row.label, font: { size: o.labelSize, weight: "bold" }, textColor: row.color, maxLines: 1 }),
+      centeredRow({ type: "text", text: fmt(row.price), font: { size: o.priceSize, weight: "bold" }, textColor: COLORS.primary, maxLines: 1 }),
       { type: "spacer" },
-    ], { align: "center", h: o.h, gap: 0, pad: o.padding, bg: row.bg, radius: o.radius, flex: 1 });
+    ], { align: "center", h: o.h, gap: o.gap === undefined ? 1 : o.gap, pad: o.padding, bg: row.bg, radius: o.radius, flex: 1 });
   }
   function fuelRowML(o) {
     return ROW(mlRows.map((r) => fuelCardML(r, o)), { gap: o.gap, h: o.h, align: "center" });
@@ -1133,11 +1155,11 @@ export default async function (ctx) {
     const BODY_H_M = CARD_H_M + BODY_GAP_M + CHART_H_M;   // 116
     // 折线图：image 给 flex:1 + 固定高 → 宽度取左栏剩余宽度（SVG 内 preserveAspectRatio='none' 按实际框拉伸）
     const chartNodeM = SHOW_TREND && series.length >= 1
-      ? ROW([{
+      ? ROW([{ type: "spacer" }, {
           type: "image",
-          src: chartSVG(series, { w: 230, h: CHART_H_M, gaps: seriesGaps, labels: seriesLabels }),
-          flex: 1, height: CHART_H_M,
-        }], { gap: 0, h: CHART_H_M, align: "center" })
+          src: chartSVG(series, { w: 205, h: CHART_H_M, gaps: seriesGaps, labels: seriesLabels }),
+          resizable: true, height: CHART_H_M,
+        }, { type: "spacer" }], { gap: 0, h: CHART_H_M, align: "center" })
       : COL([
           { type: "spacer" },
           fitText({ text: SHOW_TREND ? (bfReason === "uncovered" ? "BesFuel 未收录该价区" : bfReason === "grade" ? "BesFuel 未核价该油号" : "官方历史暂不可用") : "走势已关闭", font: { size: 9 }, textColor: COLORS.tertiary, maxLines: 1, textAlign: "center", minScale: 0.7 }),
@@ -1176,11 +1198,11 @@ export default async function (ctx) {
   const NOMINAL_COL_L = 140;   // 仅用于大号预测值「取最大可容纳字号」的保守宽度估计（真实宽度由容器给）
   const fillCost = focusPrice !== null ? focusPrice * liters : null;
   const chartNodeL = SHOW_TREND && series.length >= 1
-    ? ROW([{
+    ? ROW([{ type: "spacer" }, {
         type: "image",
         src: chartSVG(series, { w: 314, h: CHART_H_L, gaps: seriesGaps, labels: seriesLabels }),
-        flex: 1, height: CHART_H_L,
-      }], { gap: 0, h: CHART_H_L, align: "center" })
+        resizable: true, height: CHART_H_L,
+      }, { type: "spacer" }], { gap: 0, h: CHART_H_L, align: "center" })
     : COL([
         { type: "spacer" },
         fitText({ text: SHOW_TREND ? bfCapLong : "走势已关闭", font: { size: 10.5 }, textColor: COLORS.secondary, maxLines: 2, textAlign: "center", minScale: 0.75 }),
@@ -1192,7 +1214,7 @@ export default async function (ctx) {
     ? `${FUEL_LABEL} 官方核价 · ${bf.name} · ${bfDateLabel} 生效 · 最新 ${bfLatest ? bfLatest.v.toFixed(2) : "--"} · ${series.length < 2 ? "仅 1 轮" : bfDeltaTxt}${bfStale ? " · 缓存" : ""}`
     : `本地快照走势 · ${series.length} 个真实节点 · 官方源暂不可用`;
   const capNodeL = SHOW_TREND && series.length >= 1
-    ? fitText({ text: capTextL, font: { size: 9 }, textColor: bfLatest ? bfColor : COLORS.tertiary, maxLines: 1, minScale: 0.75, textAlign: "center" })
+    ? centeredRow({ type: "text", text: capTextL, font: { size: 9 }, textColor: bfLatest ? bfColor : COLORS.tertiary, maxLines: 1 })
     : null;
 
   // 大号底栏：左「涨跌预测」/ 竖分隔 / 右「加满费用」，两栏 flex 1:1 等宽
