@@ -1,6 +1,6 @@
 # 中国规则集（通用文本：DOMAIN-SUFFIX / DOMAIN / IP-CIDR / IP-CIDR6）
 # 自动生成，请勿手改。生成器：rules/china/sync.py
-# 后缀 8343 / 精确 79 / 关键词 0 / 正则 3 / IPv4 6219 / IPv6 3444
+# 后缀 8344 / 精确 79 / 关键词 0 / 正则 3 / IPv4 6224 / IPv6 3447
 
 DOMAIN-SUFFIX,0033.cn
 DOMAIN-SUFFIX,00cdn.com
@@ -3774,6 +3774,7 @@ DOMAIN-SUFFIX,icbcswiss.com
 DOMAIN-SUFFIX,icbcthai.com
 DOMAIN-SUFFIX,icbkfs.com
 DOMAIN-SUFFIX,icbkus.com
+DOMAIN-SUFFIX,icc.link
 DOMAIN-SUFFIX,iccvlog.com
 DOMAIN-SUFFIX,iceo.com.cn
 DOMAIN-SUFFIX,ichangtou.com
@@ -9411,7 +9412,6 @@ IP-CIDR,220.231.128.0/17,no-resolve
 IP-CIDR,220.242.128.0/17,no-resolve
 IP-CIDR,221.12.0.0/17,no-resolve
 IP-CIDR,221.199.0.0/17,no-resolve
-IP-CIDR,222.126.128.0/17,no-resolve
 IP-CIDR,223.121.128.0/17,no-resolve
 IP-CIDR,223.254.0.0/17,no-resolve
 IP-CIDR,223.255.0.0/17,no-resolve
@@ -9601,6 +9601,7 @@ IP-CIDR,220.232.64.0/18,no-resolve
 IP-CIDR,220.242.64.0/18,no-resolve
 IP-CIDR,221.12.128.0/18,no-resolve
 IP-CIDR,221.199.128.0/18,no-resolve
+IP-CIDR,222.126.192.0/18,no-resolve
 IP-CIDR,223.252.192.0/18,no-resolve
 IP-CIDR,223.254.192.0/18,no-resolve
 IP-CIDR,1.0.32.0/19,no-resolve
@@ -9911,6 +9912,7 @@ IP-CIDR,220.242.32.0/19,no-resolve
 IP-CIDR,221.128.160.0/19,no-resolve
 IP-CIDR,221.133.224.0/19,no-resolve
 IP-CIDR,221.199.224.0/19,no-resolve
+IP-CIDR,222.126.128.0/19,no-resolve
 IP-CIDR,223.123.224.0/19,no-resolve
 IP-CIDR,223.252.128.0/19,no-resolve
 IP-CIDR,223.254.160.0/19,no-resolve
@@ -10336,6 +10338,7 @@ IP-CIDR,220.242.16.0/20,no-resolve
 IP-CIDR,221.128.144.0/20,no-resolve
 IP-CIDR,221.128.208.0/20,no-resolve
 IP-CIDR,221.199.192.0/20,no-resolve
+IP-CIDR,222.126.176.0/20,no-resolve
 IP-CIDR,223.123.208.0/20,no-resolve
 IP-CIDR,223.223.176.0/20,no-resolve
 IP-CIDR,223.223.192.0/20,no-resolve
@@ -10984,6 +10987,7 @@ IP-CIDR,220.242.8.0/21,no-resolve
 IP-CIDR,221.128.136.0/21,no-resolve
 IP-CIDR,221.128.200.0/21,no-resolve
 IP-CIDR,221.128.224.0/21,no-resolve
+IP-CIDR,222.126.160.0/21,no-resolve
 IP-CIDR,223.252.160.0/21,no-resolve
 IP-CIDR,1.1.4.0/22,no-resolve
 IP-CIDR,1.2.4.0/22,no-resolve
@@ -12761,6 +12765,7 @@ IP-CIDR,220.242.0.0/22,no-resolve
 IP-CIDR,221.128.132.0/22,no-resolve
 IP-CIDR,221.128.196.0/22,no-resolve
 IP-CIDR,221.128.232.0/22,no-resolve
+IP-CIDR,222.126.168.0/22,no-resolve
 IP-CIDR,223.27.184.0/22,no-resolve
 IP-CIDR,223.29.208.0/22,no-resolve
 IP-CIDR,223.122.20.0/22,no-resolve
@@ -13548,6 +13553,7 @@ IP-CIDR,220.247.136.0/23,no-resolve
 IP-CIDR,220.247.142.0/23,no-resolve
 IP-CIDR,221.128.192.0/23,no-resolve
 IP-CIDR,221.128.238.0/23,no-resolve
+IP-CIDR,222.126.172.0/23,no-resolve
 IP-CIDR,223.122.6.0/23,no-resolve
 IP-CIDR,223.122.14.0/23,no-resolve
 IP-CIDR,223.122.18.0/23,no-resolve
@@ -17320,7 +17326,6 @@ IP-CIDR6,2406:840:9670::/44,no-resolve
 IP-CIDR6,2406:840:9690::/44,no-resolve
 IP-CIDR6,2406:840:9850::/44,no-resolve
 IP-CIDR6,2406:840:9870::/44,no-resolve
-IP-CIDR6,2406:840:9970::/44,no-resolve
 IP-CIDR6,2406:840:9fe0::/44,no-resolve
 IP-CIDR6,2406:840:e090::/44,no-resolve
 IP-CIDR6,2406:840:e0d0::/44,no-resolve
@@ -17467,6 +17472,7 @@ IP-CIDR6,2406:840:9118::/45,no-resolve
 IP-CIDR6,2406:840:9170::/45,no-resolve
 IP-CIDR6,2406:840:9668::/45,no-resolve
 IP-CIDR6,2406:840:9868::/45,no-resolve
+IP-CIDR6,2406:840:9978::/45,no-resolve
 IP-CIDR6,2406:840:9988::/45,no-resolve
 IP-CIDR6,2406:840:e0c0::/45,no-resolve
 IP-CIDR6,2406:840:e0e8::/45,no-resolve
@@ -17605,6 +17611,7 @@ IP-CIDR6,2406:840:9114::/46,no-resolve
 IP-CIDR6,2406:840:917c::/46,no-resolve
 IP-CIDR6,2406:840:9814::/46,no-resolve
 IP-CIDR6,2406:840:9968::/46,no-resolve
+IP-CIDR6,2406:840:9970::/46,no-resolve
 IP-CIDR6,2406:840:9984::/46,no-resolve
 IP-CIDR6,2406:840:e0c8::/46,no-resolve
 IP-CIDR6,2406:840:e108::/46,no-resolve
@@ -17760,6 +17767,7 @@ IP-CIDR6,2406:840:9860::/47,no-resolve
 IP-CIDR6,2406:840:9866::/47,no-resolve
 IP-CIDR6,2406:840:9960::/47,no-resolve
 IP-CIDR6,2406:840:996e::/47,no-resolve
+IP-CIDR6,2406:840:9974::/47,no-resolve
 IP-CIDR6,2406:840:9982::/47,no-resolve
 IP-CIDR6,2406:840:e0cc::/47,no-resolve
 IP-CIDR6,2406:840:e0e6::/47,no-resolve
@@ -17951,6 +17959,7 @@ IP-CIDR6,2406:840:9865::/48,no-resolve
 IP-CIDR6,2406:840:9963::/48,no-resolve
 IP-CIDR6,2406:840:9965::/48,no-resolve
 IP-CIDR6,2406:840:996d::/48,no-resolve
+IP-CIDR6,2406:840:9976::/48,no-resolve
 IP-CIDR6,2406:840:9981::/48,no-resolve
 IP-CIDR6,2406:840:e0ce::/48,no-resolve
 IP-CIDR6,2406:840:e0e4::/48,no-resolve
