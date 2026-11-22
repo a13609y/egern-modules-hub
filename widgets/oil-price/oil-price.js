@@ -967,6 +967,19 @@ export default async function (ctx) {
   const fuelIcon = (size, tintColor) => ({ type: "image", src: "sf-symbol:fuelpump.fill", width: size, height: size, color: tintColor || COLORS.p92 });
   const refreshIcon = (size) => ({ type: "image", src: "sf-symbol:arrow.clockwise", width: size, height: size, color: COLORS.tertiary });
 
+  // ── v4.6.4 布局修复：容器宽度自适应居中 ─────────────────────────────
+  //  原实现把内容宽度按 iPhone 标准尺寸写死：小号 158-2*10=138、中号 338-20=318、大号 338-24=314。
+  //  Plus / Pro Max / iPad 上小号实际 170pt、中号/大号 364pt，Egern 里 widget 子元素默认「左上对齐」，
+  //  于是固定的 138/318 只占左边，多出来的 12/26pt 全堆在右侧 → 「默认右边留白不对称」；
+  //  开显示放大后逻辑尺寸回到 158/338，内容正好铺满，所以「放大反而正常」。
+  //  Egern 文档只暴露 ctx.widgetFamily、没有容器宽高，无法按宽度重算像素，因此用官方对齐语义解决：
+  //  纵向 stack + alignItems:'center'（文档：column 下 center = 子元素水平居中）把定宽内容居中，
+  //  多余空间左右均分 → 任意容器宽度左右留白对称，且在 158/338 上位置与原来逐像素一致。
+  const centerColumn = (children, gap) => ({
+    type: "stack", direction: "column", alignItems: "center", flex: 1, gap: gap === undefined ? 6 : gap,
+    children,
+  });
+
   // 顶部标题行：小油泵图标 + 标题（自然左对齐）+ 弹性留白 + 刷新图标 + 时间（弱化）
   // 行高显式给出，标题行与下方卡片各有独立高度与间距，互不重叠。
   function headerNode(o) {
@@ -1100,8 +1113,8 @@ export default async function (ctx) {
     };
     return {
       type: "widget",
-      padding: [9, 10, 9, 10], gap: 6, backgroundColor, refreshAfter: refreshTime,
-      children: [
+      padding: [9, 10, 9, 10], gap: 0, backgroundColor, refreshAfter: refreshTime,
+      children: [centerColumn([
         {
           // 标题行：油泵图标 + 地区油价（左，flex 占满中间）→ 刷新图标 + 更新时间（右），同一行，无独立时间行
           type: "stack", direction: "row", alignItems: "center", width: SW, height: 18, gap: 3,
@@ -1129,7 +1142,7 @@ export default async function (ctx) {
             },
         // 下轮调价行：只在四格下方（原空白区）出现，错误态不显示
         ...(hasAnyPrice ? [footNode] : []),
-      ],
+      ], 6)],
     };
   }
 
@@ -1192,8 +1205,8 @@ export default async function (ctx) {
 
     return {
       type: "widget",
-      padding: pad, gap: 6, backgroundColor, refreshAfter: refreshTime,
-      children: [
+      padding: pad, gap: 0, backgroundColor, refreshAfter: refreshTime,
+      children: [centerColumn([
         headerNode({ w: contentW, h: 20, icon: 14, title: 14, time: 11.5, clock: 11.5, pump: MC.pump }),
         hasAnyPrice
           ? {
@@ -1211,7 +1224,7 @@ export default async function (ctx) {
               ],
             }
           : emptyNode(errText, 12, contentW),
-      ],
+      ], 6)],
     };
   }
 
@@ -1264,8 +1277,8 @@ export default async function (ctx) {
 
   return {
     type: "widget",
-    padding: padL, gap: 6, backgroundColor, refreshAfter: refreshTime,
-    children: [
+    padding: padL, gap: 0, backgroundColor, refreshAfter: refreshTime,
+    children: [centerColumn([
       headerNode({ w: contentW_L, h: 24, icon: 17, title: 16, time: 12.5, clock: 13, pump: MC.pump }),
       hasAnyPrice
         ? {
@@ -1305,6 +1318,6 @@ export default async function (ctx) {
             ],
           }
         : emptyNode(errText, 13, contentW_L),
-    ],
+    ], 6)],
   };
 }
