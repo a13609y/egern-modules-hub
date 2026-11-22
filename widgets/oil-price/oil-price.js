@@ -1,5 +1,5 @@
 /**
- * ⛽ 全国实时油价小组件 v4.7.3（Egern 模块版 · 真机截图回归：修 98 号 10.39 被截成「10....」（价数字统一降到能容下最宽价、卡内横向留白 3→2）/ 小号四格恢复 v4.7.1 的 46pt 格高与字号，底部两行信息块另占额外区域、不再压缩格子） · 预测统一元/升 + 四油品区间（汽油/柴油密度换算）/ 中号右栏三块 36pt 铺满 / 三尺寸预测文案精简）
+ * ⛽ 全国实时油价小组件 v4.7.4（Egern 模块版 · 放大模式回归：中号走势图回到 v4.7.1 的「固定 205pt 名义宽 + 两侧弹性 spacer 居中」方案，不再用 flex:1/cover 吃满左栏——v4.7.2 的拉伸在放大模式下会跨过竖分隔线压到右栏；其余（98 号 10.39 完整显示、小号四格 46pt + 两行信息块、右栏三块 36pt）全部保留） · 预测统一元/升 + 四油品区间（汽油/柴油密度换算）/ 三尺寸预测文案精简）
  *
  * 现价源：http://m.qiyoujiage.com/（省份 / 城市页面）
  * 历史源：BesFuel（https://github.com/BensonLaur/BesFuel）已核实的发改委调价历史（元/升，真实节点）
@@ -779,7 +779,7 @@ export default async function (ctx) {
       saveBudget("reserved", 0);                   // 先落预算再发请求：中途失败也算今天已用
       let resp = null, body = null, status = 0;
       try {
-        const headers = { "content-type": "application/json", accept: "application/json", "user-agent": "EgernOilWidget/4.7.3" };
+        const headers = { "content-type": "application/json", accept: "application/json", "user-agent": "EgernOilWidget/4.7.4" };
         if (OIL_KEY) headers.authorization = `Bearer ${OIL_KEY}`;
         resp = await ctx.http.post(FC_URL, { headers, body: { province: cnProv }, timeout: 8000 });
         status = resp ? resp.status : 0;
@@ -1195,17 +1195,20 @@ export default async function (ctx) {
     const BODY_GAP_M = 4;
     const CHART_H_M = 66;
     const BODY_H_M = CARD_H_M + BODY_GAP_M + CHART_H_M;   // 116
-    // 折线图（v4.7.2）：两侧弹性 spacer 已去掉 —— 它们会把图钉在 SVG 固有 205pt 上，
-    //  真机里图比上面四卡行窄一截（截图证据）。改为 image flex:1 直接吃满左栏；
-    //  名义宽 246 ≈ 345/364pt 机型的左栏宽度（3:1 分栏后约 234/248），
-    //  SVG 里 preserveAspectRatio='none' 让曲线按实际框拉伸，resizeMode 'cover' 保证铺满；
-    //  窄机型（329）时框更窄，contain 兜底只会等比略缩，不会越界。
+    // 折线图（v4.7.4 回滚到 v4.7.1 的确定宽度方案）：
+    //  v4.7.2 用 `flex:1 + resizeMode:'cover'` 让 image 去争抢整条行宽，真机表现为图按名义宽
+    //  240pt 撑开左栏，在放大模式（系统字体放大、可用宽度变窄）下越过竖分隔线压进右栏
+    //  （截图 photo_6D235B3A 证据）。现改回「固定 205pt 名义宽 + 两侧无长度弹性 spacer」：
+    //  框宽恒为 205pt，剩余空间被左右两个 spacer 等分 → 永远居中，宽度与机型/放大模式无关。
+    //  尺寸校验：最窄机型（像素宽 338）左栏约 216pt（338 − 左右 padding 20 − 竖线 1 − 两侧 gap 12
+    //  − 右栏 ≈ 89），205pt 居中后每侧余 5.5pt，仍留安全余量；right 栏 flex 3:1 不变。
+    //  曲线/字号不受影响（chartSVG 未改），只是不再横向拉伸。
     const chartNodeM = SHOW_TREND && series.length >= 1
-      ? ROW([{
+      ? ROW([{ type: "spacer" }, {
           type: "image",
-          src: chartSVG(series, { w: 240, h: CHART_H_M, gaps: seriesGaps, labels: seriesLabels }),
-          resizable: true, resizeMode: "cover", height: CHART_H_M, flex: 1,
-        }], { gap: 0, h: CHART_H_M, align: "center" })
+          src: chartSVG(series, { w: 205, h: CHART_H_M, gaps: seriesGaps, labels: seriesLabels }),
+          resizable: true, height: CHART_H_M,
+        }, { type: "spacer" }], { gap: 0, h: CHART_H_M, align: "center" })
       : COL([
           { type: "spacer" },
           fitText({ text: SHOW_TREND ? (bfReason === "uncovered" ? "BesFuel 未收录该价区" : bfReason === "grade" ? "BesFuel 未核价该油号" : "官方历史暂不可用") : "走势已关闭", font: { size: 9 }, textColor: COLORS.tertiary, maxLines: 1, textAlign: "center", minScale: 0.7 }),
