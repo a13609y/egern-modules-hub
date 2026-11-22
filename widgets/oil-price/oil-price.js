@@ -1,5 +1,5 @@
 /**
- * ⛽ 全国实时油价小组件 v4.7.2（Egern 模块版 · 真机截图回归：小号底行改两行信息块＋幅度放大到 14pt / 中号走势图 flex 撑满左栏） · 预测统一元/升 + 四油品区间（汽油/柴油密度换算）/ 中号右栏三块 36pt 铺满 / 三尺寸预测文案精简）
+ * ⛽ 全国实时油价小组件 v4.7.3（Egern 模块版 · 真机截图回归：修 98 号 10.39 被截成「10....」（价数字统一降到能容下最宽价、卡内横向留白 3→2）/ 小号四格恢复 v4.7.1 的 46pt 格高与字号，底部两行信息块另占额外区域、不再压缩格子） · 预测统一元/升 + 四油品区间（汽油/柴油密度换算）/ 中号右栏三块 36pt 铺满 / 三尺寸预测文案精简）
  *
  * 现价源：http://m.qiyoujiage.com/（省份 / 城市页面）
  * 历史源：BesFuel（https://github.com/BensonLaur/BesFuel）已核实的发改委调价历史（元/升，真实节点）
@@ -779,7 +779,7 @@ export default async function (ctx) {
       saveBudget("reserved", 0);                   // 先落预算再发请求：中途失败也算今天已用
       let resp = null, body = null, status = 0;
       try {
-        const headers = { "content-type": "application/json", accept: "application/json", "user-agent": "EgernOilWidget/4.7.2" };
+        const headers = { "content-type": "application/json", accept: "application/json", "user-agent": "EgernOilWidget/4.7.3" };
         if (OIL_KEY) headers.authorization = `Bearer ${OIL_KEY}`;
         resp = await ctx.http.post(FC_URL, { headers, body: { province: cnProv }, timeout: 8000 });
         status = resp ? resp.status : 0;
@@ -950,10 +950,28 @@ export default async function (ctx) {
     if (ch === " " || ch === "\u00a0") return 0.3;
     return 0.56;
   };
+  //  v4.7.3 用真机截图校准：18pt 粗体「8.33」墨迹 41.3pt，原模型只算 37.8pt（偏窄 9%），
+  //  正是这次「10.39 → 10....」判定偏乐观的根因。粗体前进宽系数由 1.04 提到 1.13（含字距余量）。
+  const BOLD_ADV = 1.13;
   const textWidth = (s, size, weight) => {
     let w = 0;
     for (const ch of String(s)) w += CH_EM(ch) * size;
-    return w * (weight === "bold" || weight === "semibold" || weight === "heavy" || weight === "black" ? 1.04 : 1);
+    return w * (weight === "bold" || weight === "semibold" || weight === "heavy" || weight === "black" ? BOLD_ADV : 1.02);
+  };
+  //  卡内价格可用宽度反推（按最窄常见机型保守估计，px/pt 由 真机截图 3.0 标定）：
+  //   小号按真机（small 卡片截图 509px / 3.0 = 170pt）：内宽 150 → 两卡 (150-6)/2 = 72 → 减 2×2 = 68
+  //   中号按「最窄常见机型 329pt」保守取：四卡 (215.5-12)/4 = 50.9 → 减 2×1 padding = 48.9
+  //        （用户真机 428pt 屏四卡各 57.3pt，留有 8pt 余量；窄机型 minScale 0.85 只作兜底）
+  //   大号宽 329 → 内宽 305 → 四卡 (305-18)/4 = 71.75 → 减 2×1 padding = 69.75
+  const CARD_INNER_S = 62, CARD_INNER_M = 48.9, CARD_INNER_L = 67.8;
+  //  统一价数字号：从目标字号往下取第一档「最宽价整串放得下」的字号，四卡共用同一档，绝不逐格缩字
+  //  slack：留 3pt 内边距（真机实测「刚好放下」仍会因字形前进宽/取整触发省略号）
+  const fitPriceSize = (prices, maxW, target, floor) => {
+    const room = Math.max(0, maxW - 3);
+    const widestAtTarget = Math.max(...prices.map((v) => textWidth(fmt(v), target, "bold")));
+    let sz = target;
+    while (sz > floor && widestAtTarget * (sz / target) > room) sz -= 0.5;
+    return sz;
   };
 
   // ════════════════════════════════════════════════════════════
@@ -1040,7 +1058,7 @@ export default async function (ctx) {
     return COL([
       { type: "spacer" },
       centeredRow({ type: "text", text: row.label, font: { size: o.labelSize, weight: "bold" }, textColor: row.color, maxLines: 1 }),
-      centeredRow({ type: "text", text: fmt(row.price), font: { size: o.priceSize, weight: "bold" }, textColor: COLORS.primary, maxLines: 1 }),
+      centeredRow({ type: "text", text: fmt(row.price), font: { size: o.priceSize, weight: "bold" }, textColor: COLORS.primary, maxLines: 1, minScale: 0.85 }),
       { type: "spacer" },
     ], { align: "center", h: o.h, gap: o.gap === undefined ? 1 : o.gap, pad: o.padding, bg: tint(row.color, "1F"), radius: o.radius, flex: 1 });
   }
@@ -1091,34 +1109,36 @@ export default async function (ctx) {
   // 6. 小号（158/170 等）：标题行整宽撑满 / 2×2 四格按 flex 均分，横向不写死像素
   //    纵向：padding 9/10 → 标题行 18 + gap 6 + 网格 97 + gap 6 + 底部预测行 13
   // ════════════════════════════════════════════════════════════
-  // ── v4.7.2 小号重排（真机截图证据：底行只有一行 10pt 预测，卡片底部一片白）──
-  //  纵向预算（按 158pt 口径留 1pt 余量）：padding 8+8 = 16
-  //    标题 17 + gap 4 + 网格 (41+4+41) 86 + gap 4 + 底部信息块 30 = 157
-  //  底部信息块两行，都整行居中（双弹性 spacer 等分左右）：
-  //    第 1 行「预测 + 幅度」：幅度 14pt 粗体（原 10pt），带色，作为小号第二视觉重心；
-  //    第 2 行「下轮 + 时间」：9pt 灰字，时间直接取已有 nextTimeTxt（真实字段，无数据时显示「待更新」，绝不造值）。
+  // ── v4.7.3 小号重排（按真机截图 photo_FA30FA83 回修）────────────
+  //  上一版把田字格从 46 压到 41 去给底部两行腾地方，真机里四格明显变扁、
+  //  而底部信息块只用了 30，卡片下方却留出一片空白 —— 用户明确要求「为什么缩短田字格」。
+  //  本版：田字格恢复 v4.7.1 的 46pt 格高 / 5pt 行距 / 10pt 标签 / 16pt 价数字，
+  //  底部两行信息块改为「额外区域」= 把 158 剩下的 20pt 用满（不再抢格子的高度）。
+  //  纵向预算（158pt，按含 padding 的边框盒口径）：
+  //    padding 8 + 8 = 16，三子元素两道 gap 4+4 = 8
+  //    标题 17 + 田字格 (46 + 5 + 46) 97 + 底部信息块 20 = 134 → 16 + 8 + 134 = 158 ✓ 正好
+  //  底部信息块 20 = 第 1 行 11（「预测」9pt + 幅度 12.5pt 粗体带色）+ gap 1 + 第 2 行 8（「下轮」7.5pt + 时间 8.5pt）
+  //  四卡统一 font weight=bold、统一字号（同一 priceSize 变量），不做「某一格缩字」。
   if (isSmall) {
-    const GAP = 6, CELL_H = 41, ROW_GAP = 4;
-    const FOOT_L1 = 17, FOOT_GAP = 2, FOOT_L2 = 11, FOOT_H = FOOT_L1 + FOOT_GAP + FOOT_L2;  // 30
-    const cardOpt = { h: CELL_H, labelSize: 10, priceSize: 17, radius: 10, padding: [2, 2, 2, 2], gap: 1 };
+    const GAP = 6, CELL_H = 46, ROW_GAP = 5;
+    const priceSizeS = fitPriceSize(allRows.map((r) => r.price), CARD_INNER_S, 16, 12);
+    const cardOpt = { h: CELL_H, labelSize: 10, priceSize: priceSizeS, radius: 10, padding: [2, 2, 2, 2], gap: 1 };
     const gridRow = (a, b) => ROW([fuelCard(a, cardOpt), fuelCard(b, cardOpt)], { gap: GAP, h: CELL_H, align: "center" });
+    const FOOT_L1 = 11, FOOT_GAP = 1, FOOT_L2 = 8, FOOT_H = 20;
+    const footRow = (children, h) => ROW([
+      { type: "spacer" },
+      ROW(children, { gap: 3, align: "center", h }),
+      { type: "spacer" },
+    ], { gap: 0, h, align: "center" });
     const footNode = COL([
-      ROW([
-        { type: "spacer" },
-        ROW([
-          { type: "text", text: "预测", font: { size: 9 }, textColor: COLORS.tertiary, maxLines: 1 },
-          { type: "text", text: fcPlain, font: { size: 14, weight: "bold" }, textColor: fcColor, maxLines: 1, minScale: 0.8 },
-        ], { gap: 4, align: "center", h: FOOT_L1 }),
-        { type: "spacer" },
-      ], { gap: 0, h: FOOT_L1, align: "center" }),
-      ROW([
-        { type: "spacer" },
-        ROW([
-          { type: "text", text: "下轮", font: { size: 8.5 }, textColor: COLORS.tertiary, maxLines: 1 },
-          { type: "text", text: nextTimeTxt, font: { size: 9.5, weight: "semibold" }, textColor: COLORS.secondary, maxLines: 1, minScale: 0.8 },
-        ], { gap: 4, align: "center", h: FOOT_L2 }),
-        { type: "spacer" },
-      ], { gap: 0, h: FOOT_L2, align: "center" }),
+      footRow([
+        { type: "text", text: "预测", font: { size: 9 }, textColor: COLORS.tertiary, maxLines: 1 },
+        { type: "text", text: fcPlain, font: { size: 12.5, weight: "bold" }, textColor: fcColor, maxLines: 1, minScale: 0.85 },
+      ], FOOT_L1),
+      footRow([
+        { type: "text", text: "下轮", font: { size: 7.5 }, textColor: COLORS.tertiary, maxLines: 1 },
+        { type: "text", text: nextTimeTxt, font: { size: 8.5, weight: "semibold" }, textColor: COLORS.secondary, maxLines: 1, minScale: 0.85 },
+      ], FOOT_L2),
     ], { h: FOOT_H, gap: FOOT_GAP, align: "center" });
     return {
       type: "widget",
@@ -1148,7 +1168,7 @@ export default async function (ctx) {
     return COL([
       { type: "spacer" },
       centeredRow({ type: "text", text: row.label, font: { size: o.labelSize, weight: "bold" }, textColor: row.color, maxLines: 1 }),
-      centeredRow({ type: "text", text: fmt(row.price), font: { size: o.priceSize, weight: "bold" }, textColor: COLORS.primary, maxLines: 1 }),
+      centeredRow({ type: "text", text: fmt(row.price), font: { size: o.priceSize, weight: "bold" }, textColor: COLORS.primary, maxLines: 1, minScale: 0.85 }),
       { type: "spacer" },
     ], { align: "center", h: o.h, gap: o.gap === undefined ? 1 : o.gap, pad: o.padding, bg: row.bg, radius: o.radius, flex: 1 });
   }
@@ -1166,7 +1186,12 @@ export default async function (ctx) {
   if (!isLarge) {
     const pad = [9, 10, 6, 10];
     const DIV_GAP = 6;
-    const CARD_GAP_M = 4, CARD_H_M = 46, CARD_PAD_M = 3;
+    const CARD_GAP_M = 4, CARD_H_M = 46, CARD_PAD_M = 1;
+    // v4.7.3：真机实测四卡各 172px（3.0 px/pt → 57.3pt），去掉 2×2 padding 后卡内只有 53.3pt，
+    //  而 18pt 粗体「10.39」前进宽 = 2.59em × 18 × 1.13 ≈ 52.7pt（截图墨迹 52.6pt 同源），
+    //  剩 0.6pt 内边距 → 系统在这一行触发省略号，渲染成「10....」。
+    //  四卡共用同一 priceSize，按「最宽价整串放得下」反推，不做逐格缩字。
+    const priceSizeM = fitPriceSize(mlRows.map((r) => r.price), CARD_INNER_M, 18, 13);
     const BODY_GAP_M = 4;
     const CHART_H_M = 66;
     const BODY_H_M = CARD_H_M + BODY_GAP_M + CHART_H_M;   // 116
@@ -1196,7 +1221,7 @@ export default async function (ctx) {
         hasAnyPrice
           ? ROW([
               COL([
-                fuelRowML({ h: CARD_H_M, gap: CARD_GAP_M, labelSize: 10, priceSize: 18, radius: 11, padding: [3, CARD_PAD_M, 3, CARD_PAD_M] }),
+                fuelRowML({ h: CARD_H_M, gap: CARD_GAP_M, labelSize: 10, priceSize: priceSizeM, radius: 11, padding: [3, CARD_PAD_M, 3, CARD_PAD_M] }),
                 chartNodeM,
               ], { gap: BODY_GAP_M, align: "start", flex: 3 }),
               vDivider(BODY_H_M - 4),
@@ -1215,6 +1240,8 @@ export default async function (ctx) {
   // ════════════════════════════════════════════════════════════
   const padL = [10, 12, 8, 12];
   const CARD_GAP_L = 6, CARD_H_L = 78;
+  // 大号卡内宽度 ~70pt（329pt 机型）：26pt 粗体「10.39」≈ 76pt 放不下，同样按最宽价反推
+  const priceSizeL = fitPriceSize(mlRows.map((r) => r.price), CARD_INNER_L, 26, 18);
   const CHART_H_L = 126;
   const NOMINAL_COL_L = 140;   // 仅用于大号预测值「取最大可容纳字号」的保守宽度估计（真实宽度由容器给）
   const fillCost = focusPrice !== null ? focusPrice * liters : null;
@@ -1258,7 +1285,7 @@ export default async function (ctx) {
       headerNode({ h: 24, icon: 17, title: 16, time: 12.5, clock: 13, pump: MC.pump }),
       hasAnyPrice
         ? COL([
-            fuelRowML({ h: CARD_H_L, gap: CARD_GAP_L, labelSize: 12, priceSize: 26, radius: 14, padding: [6, 2, 6, 2] }),
+            fuelRowML({ h: CARD_H_L, gap: CARD_GAP_L, labelSize: 12, priceSize: priceSizeL, radius: 14, padding: [6, 2, 6, 2] }),
             chartNodeL,
             ...(capNodeL ? [capNodeL] : []),
             hDivider,
