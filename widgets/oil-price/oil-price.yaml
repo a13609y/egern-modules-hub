@@ -65,7 +65,7 @@ dns: {}
 scriptings:
   - generic:
       name: oil-price
-      script_url: https://raw.githubusercontent.com/a13609y/egern-modules-hub/main/widgets/oil-price/oil-price.js
+      script_url: https://raw.githubusercontent.com/a13609y/egern-modules-hub/9730004d03bb7c0df507501cee19cc01f60d559f/widgets/oil-price/oil-price.js
       timeout: 20
       env:
         region: "{{{region}}}"
