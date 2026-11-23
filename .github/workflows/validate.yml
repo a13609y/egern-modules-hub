@@ -1,0 +1,62 @@
+name: validate
+
+# 贡献改动的静态门禁：与 README/AGENTS.md 里写的本地命令完全一致。
+# 只读校验，不提交、不推送，也不碰每日 sync-*.yml 同步流。
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: validate-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: 安装依赖（唯一第三方依赖：pyyaml）
+        run: python3 -m pip install --quiet --disable-pip-version-check pyyaml==6.0.2
+
+      - name: 全仓静态校验（YAML / 元数据 / 链接 / 目录树 / 自引用 / rewrites 守卫）
+        run: python3 scripts/check_repo.py
+
+      - name: 中国规则集专项校验
+        run: python3 rules/china/verify.py
+
+      - name: BiliBili Redirect 行为测试
+        run: node rules/bilibili-redirect/test.mjs
+
+      - name: Coolapk 行为测试
+        working-directory: rules/coolapk
+        run: |
+          cp coolapk.js coolapk.mjs
+          node test.mjs
+
+      - name: 空白与冲突残留
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          base="$BASE_SHA"
+          if ! git cat-file -e "${base}^{commit}" 2>/dev/null; then
+            base=$(git rev-parse HEAD^ 2>/dev/null) || base=$(git hash-object -t tree /dev/null)
+          fi
+          git diff --check "$base" HEAD

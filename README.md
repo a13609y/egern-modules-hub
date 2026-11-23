@@ -25,12 +25,21 @@ rules/              规则 / URL 重写 / MITM / http_response 类模块
 ├── china/          中国规则集（大陆域名 8,400+ / IPv4 6,200+ / IPv6 3,400+ 段，no_resolve: true，每天跟随上游）
 rulesets/           纯规则集（不含模块，直接给 rule_set 引用）
 ├── foreign-domains/ 国外域名规则集（26,000+ 条，每天更新）
-scripts/            独立脚本（抓包、签到、通知等）
-docs/               说明与踩坑记录
+scripts/            仓库自检脚本（contributions 前跑一遍，CI 也跑）
 .github/workflows/  上游同步（每天拉一次上游，有变化才提交）
 ```
 
 命名约定：目录用 `kebab-case`，每个模块目录内文件名与目录同名，附一份 `README.md`。
+
+提交前自检（本地一条命令，等价于 PR CI）：
+
+```sh
+python3 -m pip install --quiet pyyaml==6.0.2   # 唯一第三方依赖
+python3 scripts/check_repo.py                  # YAML / 元数据 / 链接 / 目录树 / 自引用
+git diff --check                               # 空白与冲突残留
+```
+
+贡献约定（模块目录、Egern 版本与 rewrites 写法、发布前检查清单）见 [AGENTS.md](AGENTS.md)。
 
 ## 模块清单
 
