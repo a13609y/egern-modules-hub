@@ -19,6 +19,7 @@ concurrency:
 jobs:
   sync:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
 
@@ -48,6 +49,41 @@ jobs:
               assert f.read().count('DOMAIN-SUFFIX,') == len(suf)
           print(f'ok: 后缀 {len(suf)} / 精确 {len(d.get("domain_set") or [])} / 正则 {len(d.get("domain_regex_set") or [])} / GeoIP {len(g)}')
           PY
+
+      # ── 发布前门禁 ────────────────────────────────────────────────
+      # 与 PR CI 同一条命令（sh scripts/check_all.sh，见 validate.yml），只在
+      # 本次同步真的改动了规则集产物时才跑；它一旦非零退出，下面的「提交变化」
+      # 就不会执行 —— 失败即不发布，工作流保持红。
+      # 被检的是数据产物（sync.py 只写 yaml/txt），门禁跑的都是本仓库自身脚本，
+      # 不会执行任何来自上游的代码。
+      - name: 产物是否有变化
+        id: diff
+        run: |
+          if [ -n "$(git status --porcelain rulesets/foreign-domains)" ]; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            echo "::notice::规则集产物有变化，将跑发布前门禁"
+          else
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::规则集产物无变化，跳过发布前门禁"
+          fi
+
+      - uses: actions/setup-python@v5
+        if: steps.diff.outputs.changed == 'true'
+        with:
+          python-version: "3.12"
+
+      - uses: actions/setup-node@v4
+        if: steps.diff.outputs.changed == 'true'
+        with:
+          node-version: "22"
+
+      - name: 安装门禁依赖（唯一第三方依赖：pyyaml）
+        if: steps.diff.outputs.changed == 'true'
+        run: python3 -m pip install --quiet --disable-pip-version-check pyyaml==6.0.2
+
+      - name: 发布前门禁（与 PR CI 同一命令）
+        if: steps.diff.outputs.changed == 'true'
+        run: sh scripts/check_all.sh
 
       - name: 提交变化
         run: |
