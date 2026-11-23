@@ -25,21 +25,27 @@ rules/              规则 / URL 重写 / MITM / http_response 类模块
 ├── china/          中国规则集（大陆域名 8,400+ / IPv4 6,200+ / IPv6 3,400+ 段，no_resolve: true，每天跟随上游）
 rulesets/           纯规则集（不含模块，直接给 rule_set 引用）
 ├── foreign-domains/ 国外域名规则集（26,000+ 条，每天更新）
-scripts/            仓库自检脚本（contributions 前跑一遍，CI 也跑）
-.github/workflows/  上游同步（每天拉一次上游，有变化才提交）
+scripts/            仓库自检脚本（check_all.sh 一条命令跑完，CI 跑同一个脚本）
+agents/skills/      仓库维护技能（egern-hub-maintenance：加模块 / 跑门禁 / 排查同步）
+.github/workflows/  上游同步（每天拉一次上游，有变化才提交）+ validate.yml 贡献门禁
 ```
 
 命名约定：目录用 `kebab-case`，每个模块目录内文件名与目录同名，附一份 `README.md`。
 
-提交前自检（本地一条命令，等价于 PR CI）：
+提交前自检（本地一条命令，与 PR CI 同一套检查）：
 
 ```sh
-python3 -m pip install --quiet pyyaml==6.0.2   # 唯一第三方依赖
-python3 scripts/check_repo.py                  # YAML / 元数据 / 链接 / 目录树 / 自引用
-git diff --check                               # 空白与冲突残留
+sh scripts/check_all.sh
 ```
 
-贡献约定（模块目录、Egern 版本与 rewrites 写法、发布前检查清单）见 [AGENTS.md](AGENTS.md)。
+它依次跑全仓静态校验（YAML / 元数据 / 链接 / 目录树 / 自引用 / 统一 `rewrites` 守卫）、中国规则集专项校验、
+BiliBili Redirect 行为测试、Coolapk 行为测试（拷到临时目录跑，不在工作区生成文件）、
+BiliBili 六组开关解析的离线测试（合成样本，无网络无凭据）、`git diff --check`。
+CI（`.github/workflows/validate.yml`）跑同一个脚本，只多一步 `git diff --check <base> HEAD`：
+检查的是提交范围内的差异，本地那步查的是尚未提交的工作区改动。
+
+贡献约定（模块目录、Egern 2.21.0+ 版本与统一 `rewrites` 写法、发布前检查清单）见 [AGENTS.md](AGENTS.md)；
+仓库维护手册（加模块、跑门禁、同步排查）见 `agents/skills/egern-hub-maintenance/SKILL.md`。
 
 ## 模块清单
 

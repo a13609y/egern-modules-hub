@@ -1,7 +1,11 @@
 name: validate
 
-# 贡献改动的静态门禁：与 README/AGENTS.md 里写的本地命令完全一致。
+# 贡献改动的门禁：核心检查与本地完全一致 —— 都是 `sh scripts/check_all.sh`。
 # 只读校验，不提交、不推送，也不碰每日 sync-*.yml 同步流。
+#
+# 与本地唯一的差别：这里多一步「提交范围内的空白/冲突残留」（base..HEAD）。
+# CI 检出的工作区是干净的，`git diff --check` 在 CI 里永远为空，所以必须显式给
+# 提交范围；本地 check_all.sh 里那一步查的是你尚未提交的工作区改动，两者互补。
 
 on:
   push:
@@ -36,22 +40,14 @@ jobs:
       - name: 安装依赖（唯一第三方依赖：pyyaml）
         run: python3 -m pip install --quiet --disable-pip-version-check pyyaml==6.0.2
 
-      - name: 全仓静态校验（YAML / 元数据 / 链接 / 目录树 / 自引用 / rewrites 守卫）
-        run: python3 scripts/check_repo.py
+      # 一个步骤跑完全部检查，顺序与本地相同：
+      # check_repo.py → china/verify.py → bilibili test.mjs → coolapk test.mjs（临时目录）
+      # → scripts/tests/test_bilibili_toggles.py → git diff --check（空，见下一步说明）
+      - name: 仓库门禁（与本地同一命令）
+        run: sh scripts/check_all.sh
 
-      - name: 中国规则集专项校验
-        run: python3 rules/china/verify.py
-
-      - name: BiliBili Redirect 行为测试
-        run: node rules/bilibili-redirect/test.mjs
-
-      - name: Coolapk 行为测试
-        working-directory: rules/coolapk
-        run: |
-          cp coolapk.js coolapk.mjs
-          node test.mjs
-
-      - name: 空白与冲突残留
+      # CI 专用：提交范围内的空白与冲突残留。本地无法覆盖这段范围。
+      - name: 空白与冲突残留（提交范围）
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
         run: |
