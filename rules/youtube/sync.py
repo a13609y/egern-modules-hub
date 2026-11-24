@@ -152,7 +152,9 @@ export default async function (ctx) {{
 def bundle(kind: str, body: str) -> str:
     repo, commit, path, digest = PIN[kind]
     head = prelude(kind, commit)
-    return f"{head}{body}\n}}\n"  # 闭合 export default
+    # 上游文件带行尾空白，CI 的 `git diff --check` 会判失败；这里只做格式化（无语义改动）
+    body = "\n".join(line.rstrip() for line in body.splitlines()) + "\n"
+    return f"{head}{body}}}\n"  # 闭合 export default
 
 
 def scan_js(name: str, text: str) -> None:

@@ -21,6 +21,7 @@ Copyright 2026 a13609y/egern-modules-hub（Egern 原生化、开关桥、url_rew
   2. 上游统一 rewrites 的 9 条逐条转为官方文档化的 url_rewrites（等价语义）。
   3. 删除上游死开关「屏蔽选段按钮」（未传入任何脚本）；不输出空 dns 字段。
   4. 上游 script_url 由 main 分支改为固定 commit SHA 快照（不可变）。
+  5. 生成物去掉行尾空白（仅格式，配合仓库 CI 的 `git diff --check`，无逻辑改动）。
 
 许可证说明：Maasea/sgmodule 为 Apache-2.0；gholts/surge 与 IBL3ND/* 均未提供 LICENSE 文件，
 IBL3ND 的打包属 Apache-2.0 衍生作品。本目录按 Apache-2.0 再分发并保留全部署名；

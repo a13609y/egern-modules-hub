@@ -624,9 +624,9 @@ export default async function (ctx) {
 
                             (containsMarker(field.data) ||
 
-                                (blockStore && field.no === 400157044) || 
+                                (blockStore && field.no === 400157044) ||
 
-                                field.no === 455507059 || 
+                                field.no === 455507059 ||
 
                                 (blockVerticalLive &&
 
@@ -976,7 +976,7 @@ export default async function (ctx) {
 
                     ).getFloat32(0, true);
 
-                    if (!(rate > 0)) return selector; 
+                    if (!(rate > 0)) return selector;
 
                     const limit = new Uint8Array(4);
 
@@ -1349,9 +1349,9 @@ export default async function (ctx) {
 
                             actionParams: {
 
-                                formatType: gate.formatType || 2, 
+                                formatType: gate.formatType || 2,
 
-                                settingsAction: 4, 
+                                settingsAction: 4,
 
                             },
 
@@ -4426,9 +4426,9 @@ export default async function (ctx) {
 
                 return (
 
-                    a.buffer === b.buffer && 
+                    a.buffer === b.buffer &&
 
-                    a.byteOffset < b.byteOffset + b.byteLength && 
+                    a.byteOffset < b.byteOffset + b.byteLength &&
 
                     b.byteOffset < a.byteOffset + a.byteLength
 
@@ -5780,6 +5780,5 @@ export default async function (ctx) {
 
 
         main();
-
 
 }
