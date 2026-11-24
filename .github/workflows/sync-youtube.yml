@@ -1,9 +1,14 @@
 name: sync-youtube
 
-# 只读 raw.githubusercontent（CDN），不带 token 访问上游；按 sync.py 里固定的 commit SHA
-# + sha256 取快照，因此上游即使被改写也不会改变本仓库输出（哈希不符直接失败）。
-# 关键安全约束：下载回来的上游 JS **只做哈希校验和文本拼装**，本工作流从不执行它；
-# 执行（node）只可能发生在另一道只读门禁 validate.yml 里，且只针对仓库自有脚本。
+# 每天自动发现上游 main 的最新提交并重新生成（不再是手改 PIN 的快照）：
+#   1. 无认证 GET api.github.com/repos/{IBL3ND/module,IBL3ND/js}/commits/main 解析 HEAD；
+#      secrets.GITHUB_TOKEN 只作为 Authorization 头提升速率（60/h → 5000/h），其值从不打印。
+#   2. 同一 run 每个仓库只锁一个 SHA，四个文件都从 raw.githubusercontent/<repo>/<sha>/<path> 取，
+#      逐文件算 sha256 写入 rules/youtube/SOURCE.lock（repo/commit/path/sha256/bytes + 生成物哈希）。
+#   3. 任一环节失败（API / 下载 / YAML 结构 / schema / 静态扫描 / 自检）→ 非零退出、不写文件，
+#      远端生成物保持上一版。
+# 关键安全约束：下载回来的上游 JS **只做哈希校验与文本拼装**，本工作流从不执行它；
+# 执行（node）只发生在只读门禁 validate.yml，且只针对仓库自有脚本。
 on:
   schedule:
     - cron: "47 5 * * *" # 每天 05:47 UTC（北京时间 13:47），错开其他 sync-*
@@ -30,21 +35,43 @@ jobs:
       - name: 安装依赖（唯一第三方依赖 pyyaml）
         run: python3 -m pip install --quiet --disable-pip-version-check pyyaml==6.0.2
 
-      - name: 拉固定 SHA 上游 → 确定性重生成 + 自校验
+      - name: 解析上游 main HEAD → 锁定 SHA → 确定性重生成 + 自校验
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # 仅提升 API 速率，不打印
         run: python3 rules/youtube/sync.py
+
+      - name: 打印本次锁定的上游提交（审计）
+        run: |
+          python3 - <<'PY'
+          import json
+          lock = json.load(open("rules/youtube/SOURCE.lock", encoding="utf-8"))
+          for repo, info in lock["upstream"].items():
+              print(f'{repo} @ {info["commit"]} ({info["committed_at"]}) via {info["resolved_by"]}')
+              for f in info["files"]:
+                  print(f'  {f["path"]} {f["bytes"]}B sha256={f["sha256"]}')
+          print("derived:", lock["derived"])
+          PY
 
       - name: 全仓静态校验（不跑任何上游 JS）
         run: python3 scripts/check_repo.py
 
-      - name: 有变化才提交
+      - name: 有变化才提交（含 SOURCE.lock）
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          if [ -n "$(git status --porcelain rules/youtube/youtube.yaml rules/youtube/youtube-request.js rules/youtube/youtube-response.js rules/youtube/youtube-dual-subs.js)" ]; then
-            git add rules/youtube/youtube.yaml rules/youtube/youtube-request.js rules/youtube/youtube-response.js rules/youtube/youtube-dual-subs.js
-            git commit -m "chore(youtube): 按固定上游 SHA 重生成 $(date -u +%F)"
+          FILES="rules/youtube/SOURCE.lock rules/youtube/youtube.yaml rules/youtube/youtube-request.js rules/youtube/youtube-response.js rules/youtube/youtube-dual-subs.js"
+          if [ -n "$(git status --porcelain $FILES)" ]; then
+            msg=$(python3 - <<'PY'
+          import json
+          lock = json.load(open("rules/youtube/SOURCE.lock", encoding="utf-8"))
+          ups = lock["upstream"]
+          print("chore(youtube): 跟随上游 main 更新 " + "+".join(v["commit"][:8] for v in ups.values()))
+          PY
+          )
+            git add $FILES
+            git commit -m "$msg"
             git push
-            echo "::notice::已同步固定上游快照"
+            echo "::notice::已按上游 main 最新提交重新生成并提交（SOURCE.lock 同步更新）"
           else
-            echo "上游快照无变化，不提交"
+            echo "上游快照无变化（生成物与 SOURCE.lock 均未变），不提交"
           fi

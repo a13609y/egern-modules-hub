@@ -1,6 +1,7 @@
 /*! YouTube 增强 · Egern 原生开关桥（由 rules/youtube/sync.py 生成，勿手改）
- *  内容上游：IBL3ND/js @ ab98a8752875488c50b9522f19c817d6882ed35a（原始来源 Maasea/sgmodule, Apache-2.0）
+ *  内容上游：IBL3ND/js @ aa76cd9b4a323b55efa51b8cfe94d92a3dd20126（原始来源 Maasea/sgmodule, Apache-2.0）
  *  作用：把 env_schema 的 Toggle 读成 ctx.env → $argument JSON；上游代码自下一行起逐字节原样。
+ *  本 run 锁定的 repo/commit/sha256 见 rules/youtube/SOURCE.lock（上游一变即自动变更）。
  */
 export default async function (ctx) {
   var __ytEnv = (ctx && ctx.env) || {};

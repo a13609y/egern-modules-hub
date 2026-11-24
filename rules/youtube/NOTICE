@@ -1,26 +1,23 @@
 YouTube 增强（Egern 原生版）
 Copyright 2026 a13609y/egern-modules-hub（Egern 原生化、开关桥、url_rewrites 转换）
 
-本模块包含按 Apache License 2.0 再分发的内容，署名链：
+本模块包含按 Apache License 2.0 再分发的内容，署名链（精确的 repo / commit / path / sha256
+见同目录 SOURCE.lock —— 每次同步解析上游 main 最新提交后自动更新）：
 
   Maasea/sgmodule（Apache-2.0，原始 YouTube Enhance 脚本与逻辑）
     └─ gholts/surge · modules/youtube-enhance.sgmodule（自述 "Based on Maasea's code (Apache-2.0)"；
        scripts/youtube/{request,response,ump,key}.js）
-         └─ IBL3ND/module · Egern-YouTube.yaml @ a185a5f38f0c3acaa107ce1f05304fd3204edc2a
-            （sha256 8faa25c71f728cb9883eb465a2600da65581dfd03ed628fe8dd8608cb66fa2d1，无 LICENSE 文件）
-            IBL3ND/js · youtube-request.js @ 9d93c69aa5eba5ced74524dc7e928fa7fb98378b
-            （sha256 ab292484d12fa3169ed696b0fe1aac2aeeba33668565b2376c57b45f667c7d5e）
-            IBL3ND/js · youtube-response.js @ 23866dcb42822eb4b266f48b4903298514396be2
-            （sha256 de3063780539333e1caf2c462496cee07851cdf669a0d2773d0c1da2a77355d1）
-            IBL3ND/js · YT-CC-ASR-Auto.js @ ab98a8752875488c50b9522f19c817d6882ed35a
-            （sha256 48072040d392b2f160106b93c0b15642e8c782cc63f1ecf8fbe5c3b5c966a488）
+         └─ IBL3ND/module · Egern-YouTube.yaml（无 LICENSE 文件）
+            IBL3ND/js · youtube-request.js / youtube-response.js / YT-CC-ASR-Auto.js
+            （上游 script_url 指向 IBL3ND/js 的 main；本模块按每次同步锁定的 commit 取快照）
 
 改动说明（Apache-2.0 §4(b)）：
   1. 去掉 compat_arguments / compat_arguments_schema / env._compat.$argument，改为原生 env_schema；
      脚本前追加 8 行左右的开关桥（ctx.env → $argument JSON），上游 JS 自此后逐字节保留。
   2. 上游统一 rewrites 的 9 条逐条转为官方文档化的 url_rewrites（等价语义）。
   3. 删除上游死开关「屏蔽选段按钮」（未传入任何脚本）；不输出空 dns 字段。
-  4. 上游 script_url 由 main 分支改为固定 commit SHA 快照（不可变）。
+  4. 上游 script_url 由 main 分支改为「每次同步解析 main 最新提交后锁定的 SHA 快照」（不可变）；
+     repo / commit / 逐文件 sha256 记录在 SOURCE.lock，升级时可 diff 审计。
   5. 生成物去掉行尾空白（仅格式，配合仓库 CI 的 `git diff --check`，无逻辑改动）。
 
 许可证说明：Maasea/sgmodule 为 Apache-2.0；gholts/surge 与 IBL3ND/* 均未提供 LICENSE 文件，

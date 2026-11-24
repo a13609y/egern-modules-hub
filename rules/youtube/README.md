@@ -30,6 +30,12 @@ Egern → 工具 → 模块 → `+` → 粘贴上面的地址。模块需要 MIT
 
 值接受 `true/false`（也接受 `1/0/on/off/yes/no`），非法值按默认 `true`。
 
+- 官方文档依据（2026-11-23 抓取）：`/zh-CN/docs/configuration/modules` 的 `env_schema` 条目写明
+  `options: ["true", "false"]` 会生成 **Toggle**、键名即环境变量名，且「用户未主动设置时不会写入 `env`」
+  （即用户设置后会写入脚本 `env`）；`/zh-CN/docs/configuration/scriptings` 写明脚本里的 `env`
+  **可通过 `ctx.env` 访问**。开关桥读 `ctx.env[<键名>]` 因此是文档化路径，不是猜测。
+  未验证项：真机上「模块设置页改动 → 写入 env」的生效时机（无设备可测）。
+
 ### 与原版参数的差异
 
 - 上游 IBL3ND 的 `compat_arguments` / `compat_arguments_schema` / `env._compat.$argument`
@@ -46,18 +52,40 @@ Egern → 工具 → 模块 → `+` → 粘贴上面的地址。模块需要 MIT
   `respond` 200 空体 → `http://reject-200/`，302 + `Location` → `location` + `status_code: 302`，
   `redirect` → `location` + `status_code`。语义等价、字段全部见于
   <https://egernapp.com/zh-CN/docs/configuration/url_rewrites>。
-  之所以不用统一 `rewrites`：官方文档站当前（2026-11-24 抓取）的模块页
-  <https://egernapp.com/zh-CN/docs/configuration/modules> 只列
-  `url_rewrites`/`header_rewrites`/`body_rewrites`/`map_locals`，没有统一 `rewrites` 的
-  schema 页；本仓库 AGENTS.md 要求「核过 schema + 官方示例才可写」，
-  所以这里走可核实的原生字段（详见 NOTICE 的「字段核对」段）。
+  之所以保留 `url_rewrites`、没有改写成统一 `rewrites`（这是本模块唯一一处偏离「新改动默认用统一
+  `rewrites`」的地方，证据如下，不猜）：2026-11-23 复抓官方文档站，`env_schema` / `scriptings` /
+  `url_rewrites` 页面均存在且可逐字段核对，但统一 `rewrites` 的 schema 页
+  `https://egernapp.com/zh-CN/docs/configuration/rewrites`（以及 `/rewrite`）返回 **404**，
+  没有可读 schema、也没有官方 YAML 示例。按本仓库 AGENTS.md 的「核过 schema + 官方示例才可写」，
+  这里落到**已可核实**的 `url_rewrites`。若官方日后发布统一 `rewrites` 的 schema 页与示例，
+  只需把 `sync.py` 的 `convert_rewrites()` 改成一对一映射（9 条上游改写已在该函数里逐条校验）。
+
+## 自动跟随上游（不需要手改任何 SHA）
+
+每日 GitHub Actions（`sync-youtube`，cron `47 5 * * *` UTC）执行 `rules/youtube/sync.py`：
+
+1. 无认证 REST 读取 `IBL3ND/module` 与 `IBL3ND/js` 的 `commits/main`，解析各自 **main 的最新提交**；
+   `GITHUB_TOKEN` 只用于提升 API 速率上限，不落盘、不打印。
+2. **同一个 run 每个仓库只锁定一个提交**，四个文件都从
+   `https://raw.githubusercontent.com/<repo>/<resolved_sha>/<path>` 读取，
+   因此不会出现「YAML 来自 A 提交、脚本来自 B 提交」的版本混合。
+3. 逐文件算 sha256，写入 `rules/youtube/SOURCE.lock`（repo / commit / path / sha256 / bytes，
+   外加生成物自身的 sha256 与派生计数）。上游一变，锁文件与生成物在同一提交里一起变，
+   `git log -p rules/youtube/SOURCE.lock` 就是完整的升级审计记录。
+4. 全部门禁（API / 下载 / YAML 结构 / schema / 静态扫描 / 自检断言）通过才写盘；
+   任一失败即非零退出、**不覆盖**上一版生成物。下载回来的上游 JS 只做哈希与文本拼装，**从不执行**。
+5. 上游没有新提交（或新提交没改这四个文件）时，生成物与 `SOURCE.lock` 都不变，工作流不提交。
+
+需要复现某一次同步（离线排障）时可显式锁 SHA：
+`python3 rules/youtube/sync.py --rev IBL3ND/module=<40位sha> --rev IBL3ND/js=<40位sha>`
+—— 这是唯一的手工入口，日常与 CI 都不需要它。
 
 ## 来源证据（区分直接上游与原始来源）
 
 | 层 | 仓库 | 证据 |
 | --- | --- | --- |
-| 直接上游 | `IBL3ND/module` @ `a185a5f38f0c3acaa107ce1f05304fd3204edc2a`（`Egern-YouTube.yaml`，sha256 `8faa25c7…fa2d1`） | 本模块的结构、规则、改写、脚本清单、MITM 均出自此文件；提交史 `e03e268f`(2026-10-01 建立) → `a185a5f3`(2026-11-03) 共 8 次，作者 iBL3ND，仓库无 LICENSE 文件 |
-| 脚本上游 | `IBL3ND/js`：`youtube-request.js`@`9d93c69a`、`youtube-response.js`@`23866dcb`、`YT-CC-ASR-Auto.js`@`ab98a875` | 上游 YAML 的 `script_url` 指向该仓库 `main` 分支；本模块改为按上述 commit SHA 取快照（不可变） |
+| 直接上游 | `IBL3ND/module` · `Egern-YouTube.yaml` | 本模块的结构、规则、改写、脚本清单、MITM 均出自此文件；仓库无 LICENSE 文件。每次同步解析其 `main` 最新提交，**当前 commit 与 sha256 见 `SOURCE.lock`** |
+| 脚本上游 | `IBL3ND/js` · `youtube-request.js` / `youtube-response.js` / `YT-CC-ASR-Auto.js` | 上游 YAML 的 `script_url` 指向该仓库 `main`；本模块每次同步解析 `IBL3ND/js` 的 `main` 最新提交，与 YAML 在**同一个 run 内锁定同两个 commit**，逐文件哈希见 `SOURCE.lock` |
 | 原始来源（声明的） | `gholts/surge` `modules/youtube-enhance.sgmodule` | 该文件头写明 `#!desc=... Based on Maasea's code (Apache-2.0).`；脚本路径 `scripts/youtube/{request,response,ump,key}.js`。IBL3ND 的脚本名/URL 匹配/`$argument` 键名（`blockUpload`、`blockShorts`、`blockGames`…）与 gholts 版同名同构，属同一血脉的重打包+扩展（未逐行 diff，脚本体量 12.9K vs 5.9K、130K vs 77K） |
 | 原始来源（许可） | `Maasea/sgmodule`（`LICENSE` = Apache-2.0） | gholts 自述基于 Maasea 代码；Maasea 仓库根 `LICENSE` 为 Apache License 2.0 原文 |
 
@@ -79,7 +107,7 @@ YouTube Enhance 的 Egern 重打包，而 gholts 版自述基于 Maasea（Apache
 ## 已知限制
 
 - 依赖 YouTube 内部 protobuf 接口（`youtubei/v1/*`），YouTube 改协议后上游需跟进；
-  本仓库只做「按 SHA 拉取 + 原生化」，上游不更新就不会有变化。
+  本仓库只做「解析 main → 按锁定的 SHA 拉取 → 原生化」，上游不更新则生成物不变（幂等）。
 - `nativeDownload` 仍是实验性的：未设置画质时按 720p，服务器端限制可能仍生效。
 - 字幕翻译会把字幕文本发给 `translate.googleapis.com`（上游行为，未改动）。
 - 静态校验通过 ≠ 真机可用；本模块未在 iPhone 上跑 Egern 真机回归（无设备）。
@@ -92,14 +120,17 @@ python3 rules/youtube/sync.py           # 重新生成 youtube.yaml + 3 个 bund
 sh scripts/check_all.sh                 # 全仓门禁（含 YAML/字段/链接校验）
 ```
 
-`--check` 输出示例：
+`--check` 输出示例（本文件生成时的真实输出）：
 
 ```
-{"upstream": {"module": "a185a5f3", "request": "9d93c69a", "response": "23866dcb",
- "dual_subs": "ab98a875"}, "toggles": 8, "url_rewrites": 9, "scriptings": 9,
+{"upstream": {"IBL3ND/js": "aa76cd9b", "IBL3ND/module": "6cb7c889"},
+ "upstream_full": {"IBL3ND/js": "aa76cd9b4a323b55efa51b8cfe94d92a3dd20126",
+                   "IBL3ND/module": "6cb7c889ed43e83adea8e33310ebf3c13f9d7c46"},
+ "toggles": 8, "url_rewrites": 9, "scriptings": 9,
  "bundles": ["youtube-dual-subs.js", "youtube-request.js", "youtube-response.js"],
  "changed": [], "check": true}
 ```
 
-上游升级方式：改 `sync.py` 顶部 `PIN` 的 commit + sha256（四处），跑 `--check` 通过后提交，
-CI 次日会按新 SHA 重新生成。
+上游升级：**不需要手改任何 SHA** —— 每日 cron 解析两条 `main` 的最新提交，`SOURCE.lock` 与生成物
+在同一提交里一起更新。若 `--check` 报 `changed` 非空而你没改 `sync.py`，说明上游确实动了：
+看 `git diff rules/youtube/SOURCE.lock` 里的 commit 从 X 到 Y 即可；不要手改生成物。

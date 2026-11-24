@@ -1,13 +1,16 @@
-# 自动生成：python3 rules/youtube/sync.py（上游 IBL3ND/module@a185a5f3）。
-# 请勿手改；改生成逻辑请改 sync.py，每日 GitHub Actions 会重新生成覆盖本文件。
+# 自动生成：python3 rules/youtube/sync.py；上游按本 run 解析到的最新 main 提交取快照
+#   IBL3ND/module @ 6cb7c889ed43e83adea8e33310ebf3c13f9d7c46（6cb7c889）
+#   IBL3ND/js     @ aa76cd9b4a323b55efa51b8cfe94d92a3dd20126（aa76cd9b）
+# 精确锁定的 repo/commit/path/sha256 见同目录 SOURCE.lock（每次上游一变就自动变更）。
+# 请勿手改本文件；改生成逻辑请改 sync.py，每日 GitHub Actions 会重新解析上游 main 并覆盖本文件。
 # 许可：Apache-2.0（Maasea/sgmodule 链条），见同目录 LICENSE / NOTICE。
-# 未使用统一 rewrites：上游 14 条已逐条转成官方文档化的 url_rewrites（reject-200 / 重定向）。
+# 上游统一 rewrites 的 9 条已逐条转成官方文档化的 url_rewrites（reject-200 / 重定向）。
 name: '📺 YouTube: ✨ 增强'
 description: 'YouTube 去广告、后台播放、画中画、最高画质与原生下载。
 
   8 个开关是本仓库生成的 Egern 原生 env_schema（不再是 compat_arguments 占位符）。
 
-  上游：IBL3ND/module@a185a5f3 · IBL3ND/js 脚本 · 原始来源 Maasea（Apache-2.0）→ gholts。'
+  上游：IBL3ND/module@6cb7c889 · IBL3ND/js@aa76cd9b · 原始来源 Maasea（Apache-2.0）→ gholts。'
 author: Maasea, gholts, IBL3ND（Egern 原生化与整合：a13609y/egern-modules-hub）
 homepage: https://github.com/a13609y/egern-modules-hub/tree/main/rules/youtube
 icon: play.rectangle.fill

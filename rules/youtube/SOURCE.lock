@@ -1,0 +1,66 @@
+{
+  "schema": "egern-modules-hub/source-lock/v1",
+  "module": "rules/youtube",
+  "generated_by": "rules/youtube/sync.py",
+  "upstream": {
+    "IBL3ND/js": {
+      "branch": "main",
+      "commit": "aa76cd9b4a323b55efa51b8cfe94d92a3dd20126",
+      "resolved_by": "api:repos/IBL3ND/js/commits/main",
+      "committed_at": "2026-11-23T13:13:10Z",
+      "files": [
+        {
+          "path": "YT-CC-ASR-Auto.js",
+          "bytes": 14558,
+          "sha256": "48072040d392b2f160106b93c0b15642e8c782cc63f1ecf8fbe5c3b5c966a488"
+        },
+        {
+          "path": "youtube-request.js",
+          "bytes": 12902,
+          "sha256": "ab292484d12fa3169ed696b0fe1aac2aeeba33668565b2376c57b45f667c7d5e"
+        },
+        {
+          "path": "youtube-response.js",
+          "bytes": 130331,
+          "sha256": "de3063780539333e1caf2c462496cee07851cdf669a0d2773d0c1da2a77355d1"
+        }
+      ]
+    },
+    "IBL3ND/module": {
+      "branch": "main",
+      "commit": "6cb7c889ed43e83adea8e33310ebf3c13f9d7c46",
+      "resolved_by": "api:repos/IBL3ND/module/commits/main",
+      "committed_at": "2026-11-23T12:01:23Z",
+      "files": [
+        {
+          "path": "Egern-YouTube.yaml",
+          "bytes": 7294,
+          "sha256": "8faa25c71f728cb9883eb465a2600da65581dfd03ed628fe8dd8608cb66fa2d1"
+        }
+      ]
+    }
+  },
+  "derived": {
+    "toggles": 8,
+    "url_rewrites": 9,
+    "scriptings": 9
+  },
+  "outputs": {
+    "youtube-dual-subs.js": {
+      "sha256": "99e39fdc01c3cb652722e50db10385ebbcdedff9767658ce76a9ba5cc94418b1",
+      "bytes": 15596
+    },
+    "youtube-request.js": {
+      "sha256": "dbe467f64759f8f8dc231f5c4ad59c7195885b000918dc243d54c70bbe8bc43c",
+      "bytes": 13940
+    },
+    "youtube-response.js": {
+      "sha256": "7f730ad8fb1a35ffbf748c88b93ca6c778ac76c66b25ad9fc0683627de84f809",
+      "bytes": 131362
+    },
+    "youtube.yaml": {
+      "sha256": "34a5047c231de463eeaee88fa73ea0e8a943825f6fcac2d37f4c8e8eb47db458",
+      "bytes": 8986
+    }
+  }
+}
