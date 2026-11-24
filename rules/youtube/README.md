@@ -40,7 +40,7 @@ Egern → 工具 → 模块 → `+` → 粘贴上面的地址。模块需要 MIT
 
 - 上游 IBL3ND 的 `compat_arguments` / `compat_arguments_schema` / `env._compat.$argument`
   已全部去掉，改成上面的原生 `env_schema`；脚本内由生成的前缀把 `ctx.env` 组装成上游读取的
-  `$argument` JSON，上游 JavaScript 逐字节保留（哈希见 `NOTICE`）。
+  `$argument` JSON，上游 JavaScript 逐字节保留（逐文件 sha256 见 `SOURCE.lock`）。
 - 上游的 `屏蔽选段按钮`（`屏蔽选段按钮: 'true'`）是**死开关**：它没有传给任何脚本，
   `youtube-request.js` / `youtube-response.js` 里也搜不到 `blockSelection`/选段相关读取
   （证据：`rg 'blockSelection|选段' youtube-request.js youtube-response.js` 无输出）。
@@ -74,7 +74,11 @@ Egern → 工具 → 模块 → `+` → 粘贴上面的地址。模块需要 MIT
    `git log -p rules/youtube/SOURCE.lock` 就是完整的升级审计记录。
 4. 全部门禁（API / 下载 / YAML 结构 / schema / 静态扫描 / 自检断言）通过才写盘；
    任一失败即非零退出、**不覆盖**上一版生成物。下载回来的上游 JS 只做哈希与文本拼装，**从不执行**。
-5. 上游没有新提交（或新提交没改这四个文件）时，生成物与 `SOURCE.lock` 都不变，工作流不提交。
+5. 上游 `main` 没有新提交时，生成物与 `SOURCE.lock` 都不变，工作流不提交。有新提交时锁**一定会变**
+   （`SOURCE.lock` 记录最新 commit 与 `committed_at`），所以即使该提交**没有改动这四个目标文件**，
+   也会触发一次审计提交；此时四个目标文件的 sha256 均不变，`sync.py` 的转换结果与模块配置
+   （开关 / 规则 / 改写 / 脚本正文）**完全不变**，唯一差异是生成物注释里记录的 commit 短 SHA 跟着刷新。
+   判断「上游行为是否真的变了」看 `SOURCE.lock` 的 `files[].sha256`，不要看 commit 号。
 
 需要复现某一次同步（离线排障）时可显式锁 SHA：
 `python3 rules/youtube/sync.py --rev IBL3ND/module=<40位sha> --rev IBL3ND/js=<40位sha>`
@@ -89,11 +93,24 @@ Egern → 工具 → 模块 → `+` → 粘贴上面的地址。模块需要 MIT
 | 原始来源（声明的） | `gholts/surge` `modules/youtube-enhance.sgmodule` | 该文件头写明 `#!desc=... Based on Maasea's code (Apache-2.0).`；脚本路径 `scripts/youtube/{request,response,ump,key}.js`。IBL3ND 的脚本名/URL 匹配/`$argument` 键名（`blockUpload`、`blockShorts`、`blockGames`…）与 gholts 版同名同构，属同一血脉的重打包+扩展（未逐行 diff，脚本体量 12.9K vs 5.9K、130K vs 77K） |
 | 原始来源（许可） | `Maasea/sgmodule`（`LICENSE` = Apache-2.0） | gholts 自述基于 Maasea 代码；Maasea 仓库根 `LICENSE` 为 Apache License 2.0 原文 |
 
-结论：`IBL3ND/module` 的 `Egern-YouTube.yaml` **不是**独立原创，它是 gholts/Surge 版
-YouTube Enhance 的 Egern 重打包，而 gholts 版自述基于 Maasea（Apache-2.0）。
-`IBL3ND/*` 两个仓库都没有 LICENSE；Apache-2.0 链条上的再分发必须保留署名与许可，
-故本模块带 `LICENSE`（Apache-2.0 原文）+ `NOTICE`（分层署名、SHA、哈希、改动说明）。
-若原作者要求下架，删除本目录即可，不影响仓库其他模块。
+结论（只写可从现有证据核实的事实）：
+
+- `IBL3ND/module` 的 `Egern-YouTube.yaml` **不是**独立原创：它与 gholts/Surge 版 YouTube Enhance
+  同名同构（脚本名、URL 匹配、`$argument` 键名一致），属同一血脉上的重打包 + 扩展（未逐行 diff）。
+- `Maasea/sgmodule` 仓库根有 Apache-2.0 `LICENSE` 原文；`gholts/surge` 该模块文件头自述
+  `Based on Maasea's code (Apache-2.0)`；`IBL3ND/module` 与 `IBL3ND/js` **两仓均无 LICENSE 文件**。
+
+不可从上述证据推出的结论：IBL3ND 对其增量 / 重打包代码是否取得 Apache-2.0 授权、或另行选择了其它条款，
+**本仓库无法独立确认**（照抄上游 LICENSE 文本 ≠ 上游已授权该再分发）。因此**本模块的整体再分发许可
+状态待权利人确认**，本目录不整体声明为 Apache-2.0：
+
+- 同目录 `LICENSE` 保留为链条上可核实的 **Maasea Apache-2.0 原文**，作为原始许可文本与署名依据，
+  不代表本目录整体已获 Apache-2.0 授权；
+- 同目录 `NOTICE` 保留分层署名、来源 repo / commit / 逐文件 sha256（见 `SOURCE.lock`）与改动说明，
+  供审计与权利人核对；
+- 风险：若 IBL3ND 的增量部分未获 Apache-2.0 授权或另附条件，本目录的再分发可能超出上游许可范围。
+  IBL3ND / gholts / Maasea 任一权利人提出异议，删除 `rules/youtube/` 即可，不影响仓库其他模块
+  （已发布的文件不擅自删除，等权利人表态或逐案处理）。
 
 ## 安全核查
 

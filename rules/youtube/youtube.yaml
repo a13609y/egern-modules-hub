@@ -3,7 +3,8 @@
 #   IBL3ND/js     @ aa76cd9b4a323b55efa51b8cfe94d92a3dd20126（aa76cd9b）
 # 精确锁定的 repo/commit/path/sha256 见同目录 SOURCE.lock（每次上游一变就自动变更）。
 # 请勿手改本文件；改生成逻辑请改 sync.py，每日 GitHub Actions 会重新解析上游 main 并覆盖本文件。
-# 许可：Apache-2.0（Maasea/sgmodule 链条），见同目录 LICENSE / NOTICE。
+# 许可：含源自 Apache-2.0 项目的内容（Maasea/sgmodule → gholts）；IBL3ND/* 两仓均无 LICENSE，
+#   本模块整体再分发许可状态待权利人确认，详见同目录 NOTICE（LICENSE 为 Maasea 原文，非整体授权）。
 # 上游统一 rewrites 的 9 条已逐条转成官方文档化的 url_rewrites（reject-200 / 重定向）。
 name: '📺 YouTube: ✨ 增强'
 description: 'YouTube 去广告、后台播放、画中画、最高画质与原生下载。

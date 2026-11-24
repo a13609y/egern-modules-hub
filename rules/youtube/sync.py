@@ -284,7 +284,8 @@ def build(module_yaml: str, js: dict, shas: dict) -> tuple[str, dict, dict, int]
             "#   IBL3ND/js     @ {j}（{j8}）\n"
             "# 精确锁定的 repo/commit/path/sha256 见同目录 {lock}（每次上游一变就自动变更）。\n"
             "# 请勿手改本文件；改生成逻辑请改 sync.py，每日 GitHub Actions 会重新解析上游 main 并覆盖本文件。\n"
-            "# 许可：Apache-2.0（Maasea/sgmodule 链条），见同目录 LICENSE / NOTICE。\n"
+            "# 许可：含源自 Apache-2.0 项目的内容（Maasea/sgmodule → gholts）；IBL3ND/* 两仓均无 LICENSE，\n"
+            "#   本模块整体再分发许可状态待权利人确认，详见同目录 NOTICE（LICENSE 为 Maasea 原文，非整体授权）。\n"
             "# 上游统一 rewrites 的 {n} 条已逐条转成官方文档化的 url_rewrites（reject-200 / 重定向）。\n"
             .format(m=shas["IBL3ND/module"], m8=shas["IBL3ND/module"][:8],
                     j=shas["IBL3ND/js"], j8=shas["IBL3ND/js"][:8],

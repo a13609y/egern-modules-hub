@@ -1,10 +1,10 @@
 YouTube 增强（Egern 原生版）
 Copyright 2026 a13609y/egern-modules-hub（Egern 原生化、开关桥、url_rewrites 转换）
 
-本模块包含按 Apache License 2.0 再分发的内容，署名链（精确的 repo / commit / path / sha256
-见同目录 SOURCE.lock —— 每次同步解析上游 main 最新提交后自动更新）：
+本模块包含源自 Apache-2.0 项目的内容。署名链（精确的 repo / commit / path / sha256 见同目录
+SOURCE.lock —— 每次同步解析上游 main 最新提交后自动更新）：
 
-  Maasea/sgmodule（Apache-2.0，原始 YouTube Enhance 脚本与逻辑）
+  Maasea/sgmodule（仓库根 LICENSE = Apache-2.0；原始 YouTube Enhance 脚本与逻辑）
     └─ gholts/surge · modules/youtube-enhance.sgmodule（自述 "Based on Maasea's code (Apache-2.0)"；
        scripts/youtube/{request,response,ump,key}.js）
          └─ IBL3ND/module · Egern-YouTube.yaml（无 LICENSE 文件）
@@ -20,6 +20,13 @@ Copyright 2026 a13609y/egern-modules-hub（Egern 原生化、开关桥、url_rew
      repo / commit / 逐文件 sha256 记录在 SOURCE.lock，升级时可 diff 审计。
   5. 生成物去掉行尾空白（仅格式，配合仓库 CI 的 `git diff --check`，无逻辑改动）。
 
-许可证说明：Maasea/sgmodule 为 Apache-2.0；gholts/surge 与 IBL3ND/* 均未提供 LICENSE 文件，
-IBL3ND 的打包属 Apache-2.0 衍生作品。本目录按 Apache-2.0 再分发并保留全部署名；
-如权利人提出异议，删除本目录即可（不影响仓库其他模块）。
+许可证状态（事实 + 待确认项）：
+  · 可核实：Maasea/sgmodule 仓库根 `LICENSE` 为 Apache License 2.0 原文；
+    gholts/surge 该模块文件头自述 `Based on Maasea's code (Apache-2.0)`。
+  · 可核实：IBL3ND/module 与 IBL3ND/js 两仓**均无 LICENSE 文件**。
+  · 无法确认：IBL3ND 对其重打包 / 增量代码是否取得 Apache-2.0 授权，或另选了其它条款——
+    本仓库无独立证据可判定。照抄上游 LICENSE 文本不等于上游已授权该再分发。
+  · 因此：本目录的**整体再分发许可状态需权利人确认**，本 NOTICE 不宣称本目录整体为 Apache-2.0；
+    同目录 `LICENSE` 仅作为链条上可核实的 Maasea Apache-2.0 原文予以保留。
+  · 风险：若 IBL3ND 的增量部分未获 Apache-2.0 授权或另附条件，本目录的再分发可能超出上游许可范围。
+    IBL3ND / gholts / Maasea 任一权利人提出异议，删除 `rules/youtube/` 即可，不影响仓库其他模块。
