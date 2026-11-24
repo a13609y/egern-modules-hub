@@ -1,6 +1,6 @@
 # 自动生成：python3 rules/youtube/sync.py；上游按本 run 解析到的最新 main 提交取快照
-#   IBL3ND/module @ 6cb7c889ed43e83adea8e33310ebf3c13f9d7c46（6cb7c889）
-#   IBL3ND/js     @ aa76cd9b4a323b55efa51b8cfe94d92a3dd20126（aa76cd9b）
+#   IBL3ND/module @ bd717c54e9037896e84005f54191a0b8983fdbf0（bd717c54）
+#   IBL3ND/js     @ f6b45ea1ac67f71acbc71c4063790dca10dbaa1e（f6b45ea1）
 # 精确锁定的 repo/commit/path/sha256 见同目录 SOURCE.lock（每次上游一变就自动变更）。
 # 请勿手改本文件；改生成逻辑请改 sync.py，每日 GitHub Actions 会重新解析上游 main 并覆盖本文件。
 # 许可：含源自 Apache-2.0 项目的内容（Maasea/sgmodule → gholts）；IBL3ND/* 两仓均无 LICENSE，
@@ -8,9 +8,10 @@
 # 上游统一 rewrites 的 9 条已逐条转成官方文档化的 url_rewrites（reject-200 / 重定向）。
 # 上游脚本 match 有一处生成期裁剪：youtube.single.response 去掉 youtubei/v1/next（youtube.single.response←next），
 #   即 next 响应不再被拦截/处理，player、browse 等其他路径照旧；上游脚本正文未改。
-# OAD 规则（上游 Googlevideo 的 &oad 空体 respond 200）有且仅有一处特例：换成真机验证
-#   有效的组合 —— 收窄到参数边界 [?&]oad(?:=|&|$) 并排除 videoplayback/initplayback/dclk_video_ads，
-#   拒绝方式改 404 空响应 http://reject/（原为 http://reject-200/）；其余 respond 200 规则不变。
+# OAD 规则（上游 Googlevideo 的 &oad 空体 respond 200）有且仅有一处特例：换成用户真机实测
+#   「丝滑」并明确选用的组合 —— 窄匹配 [?&]oad(?:=|&|$) 且排除 videoplayback/initplayback/
+#   dclk_video_ads，拒绝方式改空 MP4 http://reject-video/（原为 http://reject-200/）；其余 respond 200 规则不变。
+#   已知代价：窄匹配会放过上述三类 URL 上的 oad 变体，边缘广告覆盖可能减少。
 name: '📺 YouTube: ✨ 增强'
 description: 'YouTube 去广告、后台播放、画中画、最高画质与原生下载。
 
@@ -18,7 +19,7 @@ description: 'YouTube 去广告、后台播放、画中画、最高画质与原�
 
   8 个开关默认全部关闭，只有在模块设置页手动打开后才生效。
 
-  上游：IBL3ND/module@6cb7c889 · IBL3ND/js@aa76cd9b · 原始来源 Maasea（Apache-2.0）→ gholts。'
+  上游：IBL3ND/module@bd717c54 · IBL3ND/js@f6b45ea1 · 原始来源 Maasea（Apache-2.0）→ gholts。'
 author: Maasea, gholts, IBL3ND（Egern 原生化与整合：a13609y/egern-modules-hub）
 homepage: https://github.com/a13609y/egern-modules-hub/tree/main/rules/youtube
 icon: play.rectangle.fill
@@ -92,7 +93,7 @@ url_rewrites:
   location: $1$2$3
   status_code: 302
 - match: ^https?:\/\/[\w-]+\.googlevideo\.com\/(?!(?:dclk_video_ads|videoplayback\?|initplayback\?)).*[?&]oad(?:=|&|$)
-  location: http://reject/
+  location: http://reject-video/
 - match: ^https?:\/\/(www|s)\.youtube\.com\/api\/stats\/ads
   location: http://reject-200/
 - match: ^https?:\/\/(www|s)\.youtube\.com\/(pagead|ptracking)

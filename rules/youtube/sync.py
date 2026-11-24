@@ -76,14 +76,25 @@ BUNDLE_SRC = {v[0]: v[1] for v in BUNDLE.values()}
 # youtube.single.response 去掉 youtubei/v1/next：next 是刷视频时的推荐流热路径，
 # 拦它会让 next 响应的去广告/UI 处理后置到播放链路上，影响流畅度；player/browse 等路径照旧。
 DROP_MATCH_ALTS = {"youtube.single.response": ("next",)}
-# 用户设备验证有效的 OAD 规则组合（2026 真机反馈「顺了」）：只做**一处**特例变换，
-# 就是上游那条 googlevideo &oad 的空体 respond 200。三项改动是同一次真机测试一起验证的
-# 组合——收窄到明确 oad 查询参数 + 排除 videoplayback/initplayback + 404 空响应，
-# 无法断言是哪一项单独生效，因此三项作为一个整体上线，不做拆分。
+# 用户设备验证有效、并被用户点名「用这个吧」的 OAD 规则组合（2026-11-24 真机反馈「很丝滑」）：
+# 只做**一处**特例变换，就是上游那条 googlevideo 的 OAD 空体 respond。该组合来自用户本地测试模块
+# （窄匹配 + http://reject-video/ 空 MP4），两项改动是同一次真机测试一起跑出来的：窄匹配（排除
+# dclk_video_ads / videoplayback / initplayback，且要求参数边界 [?&]oad(?:=|&|$)）+ 拒绝响应用
+# 空 MP4 http://reject-video/（不是 404、不是 200 空体）。无法断言哪一项单独生效，故整体上线、
+# 不拆分；用户明确选择本组合，按此发布，不做二次改写。
+# 已知副作用（接受）：窄匹配会放过上述三类 URL 上的 OAD 变体、以及非 googlevideo 主机上的 OAD
+# 请求，这部分边缘广告可能不被拦截（README 已如实标注）。
 # 上游那条 match 必须逐字等于 OAD_UPSTREAM_MATCH 才允许变换；结构不符/条数不为 1 一律硬失败。
-OAD_UPSTREAM_MATCH = r"^https?:\/\/[\w-]+\.googlevideo\.com\/(?!(dclk_video_ads|videoplayback\?)).+&oad"
+# 上游这条 match 只认这两份**已知**字面量（都实测存在过）；改成别的写法即硬失败、需人工复核：
+#   old = 6cb7c889 一代（未排除 initplayback，动作 respond 200）
+#   new = bd717c54 一代（排除 initplayback，动作改空体 respond 404）
+OAD_UPSTREAM_MATCHES = {
+    r"^https?:\/\/[\w-]+\.googlevideo\.com\/(?!(dclk_video_ads|videoplayback\?)).+&oad": (200,),
+    r"^https?:\/\/[\w-]+\.googlevideo\.com\/(?!(dclk_video_ads|videoplayback\?|initplayback)).+&oad": (404,),
+}
+OAD_UPSTREAM_MATCH = next(iter(OAD_UPSTREAM_MATCHES))  # 兼容旧引用：见 OAD_UPSTREAM_MATCHES
 OAD_MATCH = r"^https?:\/\/[\w-]+\.googlevideo\.com\/(?!(?:dclk_video_ads|videoplayback\?|initplayback\?)).*[?&]oad(?:=|&|$)"
-OAD_LOCATION = "http://reject/"  # 404 空响应，让播放器快速失败回退，而不是把空 body 当分片解析
+OAD_LOCATION = "http://reject-video/"  # 空 MP4：播放器立即走失败分支，不进解码（已真机实测顺畅）
 # 上游允许的外联主机（字幕翻译是唯一的出站请求）；出现新主机即人工复核
 ALLOWED_HOSTS = {"translate.googleapis.com"}
 
@@ -163,7 +174,7 @@ def convert_rewrites(entries: list) -> list:
     """上游统一 rewrites（redirect/respond）→ 官方文档化的 url_rewrites。
 
     唯一特例：恰好一条 OAD googlevideo rewrite（match 逐字等于 OAD_UPSTREAM_MATCH、
-    动作为空体 respond 200）换成真机验证有效的组合（OAD_MATCH + http://reject/）。
+    动作为空体 respond 200/404）换成用户真机实测顺畅的组合（OAD_MATCH 窄匹配 + http://reject-video/ 空 MP4）。
     条数不为 1、或那条动作结构不符 → 硬失败（调用点在写盘之前，故不写任何文件）。
     其余 respond 200 空体规则仍走通用映射 -> http://reject-200/，本特例不影响它们。
     """
@@ -173,11 +184,14 @@ def convert_rewrites(entries: list) -> list:
         if len(acts) != 1:
             raise SystemExit(f"[FAIL] rewrites[{i}] 动作数不是 1，无法确定性转换")
         a = acts[0]
-        if e.get("match") == OAD_UPSTREAM_MATCH:
+        if e.get("match") in OAD_UPSTREAM_MATCHES:
             r = a.get("respond") if isinstance(a.get("respond"), dict) else None
-            if r is None or r.get("body") or r.get("headers") or r.get("status") != 200:
+            # 上游这条 OAD 规则的动作形状随版本变过（200 空体 / 404 空体），逐字绑定到 match 字面量，
+            # 两种都视为「上游 OAD 规则」基线，输出统一换成用户实测顺畅的 http://reject-video/。
+            allowed = OAD_UPSTREAM_MATCHES[e["match"]]
+            if r is None or r.get("body") or r.get("headers") or r.get("status") not in allowed:
                 raise SystemExit(
-                    f"[FAIL] rewrites[{i}] 被识别为 OAD 规则但动作不是空体 respond 200: {succinct(a)}")
+                    f"[FAIL] rewrites[{i}] 被识别为 OAD 规则但动作不是空体 respond {allowed}: {succinct(a)}")
             oad += 1
             out.append({"match": OAD_MATCH, "location": OAD_LOCATION})
             continue
@@ -351,9 +365,10 @@ def build(module_yaml: str, js: dict, shas: dict) -> tuple[str, dict, dict, int]
             "# 上游统一 rewrites 的 {n} 条已逐条转成官方文档化的 url_rewrites（reject-200 / 重定向）。\n"
             "# 上游脚本 match 有一处生成期裁剪：youtube.single.response 去掉 youtubei/v1/next（{drop}），\n"
             "#   即 next 响应不再被拦截/处理，player、browse 等其他路径照旧；上游脚本正文未改。\n"
-            "# OAD 规则（上游 Googlevideo 的 &oad 空体 respond 200）有且仅有一处特例：换成真机验证\n"
-            "#   有效的组合 —— 收窄到参数边界 [?&]oad(?:=|&|$) 并排除 videoplayback/initplayback/dclk_video_ads，\n"
-            "#   拒绝方式改 404 空响应 http://reject/（原为 http://reject-200/）；其余 respond 200 规则不变。\n"
+            "# OAD 规则（上游 Googlevideo 的 &oad 空体 respond 200）有且仅有一处特例：换成用户真机实测\n"
+            "#   「丝滑」并明确选用的组合 —— 窄匹配 [?&]oad(?:=|&|$) 且排除 videoplayback/initplayback/\n"
+            "#   dclk_video_ads，拒绝方式改空 MP4 http://reject-video/（原为 http://reject-200/）；其余 respond 200 规则不变。\n"
+            "#   已知代价：窄匹配会放过上述三类 URL 上的 oad 变体，边缘广告覆盖可能减少。\n"
             .format(m=shas["IBL3ND/module"], m8=shas["IBL3ND/module"][:8],
                     j=shas["IBL3ND/js"], j8=shas["IBL3ND/js"][:8],
                     lock=LOCK_NAME, n=n_rw,
@@ -366,16 +381,18 @@ def build(module_yaml: str, js: dict, shas: dict) -> tuple[str, dict, dict, int]
 
 
 def _assert_oad(d: dict) -> None:
-    """OAD 规则不漂移：输出正则/location 与真机验证有效的测试版逐字一致，正负样本都对。"""
+    """OAD 规则不漂移：输出正则/location 与用户实测顺畅并选用的测试版逐字一致，正负样本都对。"""
     rws = [r for r in d["url_rewrites"] if "googlevideo" in r["match"] and "oad" in r["match"]]
     assert len(rws) == 1, f"OAD url_rewrites 条数为 {len(rws)}，期望 1"
     r = rws[0]
     assert r["match"] == OAD_MATCH, f"OAD match 漂移: {r['match']!r}"
     assert r["location"] == OAD_LOCATION, f"OAD location 漂移: {r['location']!r}"
-    assert "status_code" not in r, "OAD 规则不应带 status_code（http://reject/ 本身即 404 空响应）"
+    assert "status_code" not in r, "OAD 规则不应带 status_code（http://reject-video/ 本身即空 MP4 响应）"
     rx = re.compile(r["match"])
     g = "https://rr1---sn-abc.googlevideo.com/"
-    pos = [g + "abc?oad=1", g + "abc?x=1&oad", g + "abc?x=1&oad&y=2", g + "abc?x=1&yt=1&oad=9"]
+    assert r["location"] == "http://reject-video/", f"OAD location 不是空 MP4 reject-video: {r['location']!r}"
+    pos = [g + "abc?oad=1", g + "abc?x=1&oad", g + "abc?x=1&oad&y=2", g + "abc?x=1&yt=1&oad=9",
+           g + "videoplaybackx?oad=1"]
     neg = [g + "videoplayback?id=1&oad=1", g + "videoplayback?x=1&oad=1",
            g + "initplayback?x=1&oad=1", g + "dclk_video_ads?oad=1",
            g + "abc?x=1&oadd=2", g + "abc?x=1&load=1", g + "abc?x=1&oad_id=2"]

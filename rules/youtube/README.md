@@ -75,45 +75,44 @@ Egern → 工具 → 模块 → `+` → 粘贴上面的地址。模块需要 MIT
   这里落到**已可核实**的 `url_rewrites`。若官方日后发布统一 `rewrites` 的 schema 页与示例，
   只需把 `sync.py` 的 `convert_rewrites()` 改成一对一映射（9 条上游改写已在该函数里逐条校验）。
 
-### OAD 规则：唯一一处生成期特例（真机验证有效）
+### OAD 规则：唯一一处生成期特例（用户真机实测顺畅，用户明确选用）
 
-上游 9 条改写里，第二条是针对 `googlevideo.com` 的 OAD 广告请求：
+上游 9 条改写里的第二条是针对 `googlevideo.com` 的 OAD 广告请求（上游 `bd717c54` 一代为
+`(?!(dclk_video_ads|videoplayback\?|initplayback)).+&oad` + 空体 `respond` 404；上一代 `6cb7c889`
+为 `.+&oad` + 空体 `respond` 200，两代都认，见 `sync.py` 的 `OAD_UPSTREAM_MATCHES`）。
 
-```yaml
-- match: ^https?://[\w-]+\.googlevideo\.com\/(?!(dclk_video_ads|videoplayback\?)).+&oad
-  actions:
-  - respond:
-      status: 200
-```
-
-它**不走**上面的通用映射，而是由 `sync.py` 的 `convert_rewrites()` 做**唯一一处**特例变换，
-落地成用户在 iPhone 上实测「顺了」的那条组合（生成物现在就是这两行）：
+它**不走**通用映射，由 `sync.py` 的 `convert_rewrites()` 做**唯一一处**特例变换，落地成用户在
+iPhone 上实测「很丝滑」、并明确说「用这个吧」的组合（生成物现在就是这两行）：
 
 ```yaml
-- match: ^https?://[\w-]+\.googlevideo\.com\/(?!(?:dclk_video_ads|videoplayback\?|initplayback\?)).*[?&]oad(?:=|&|$)
-  location: http://reject/
+- match: ^https?:\/\/[\w-]+\.googlevideo\.com\/(?!(?:dclk_video_ads|videoplayback\?|initplayback\?)).*[?&]oad(?:=|&|$)
+  location: http://reject-video/
 ```
 
-这个组合包含**三项改动**，是同一次真机测试一起跑出来的：
+即**窄匹配 + `http://reject-video/` 空 MP4**。两项改动是同一次真机测试一起跑出来的，无法断言
+哪一项单独生效，故作为组合整体发布、不拆分：
 
-1. 匹配从「`&oad` 子串」收窄到「明确的 oad 查询参数」`[?&]oad(?:=|&|$)`（要求参数边界，
-   `&oadd=`、`&load=` 之类不再误命中）；
-2. 排除列表从 `dclk_video_ads|videoplayback?` 扩到再加 `initplayback?`（不碰起播握手/首分片）；
-3. 拒绝响应从 `http://reject-200/`（200 空体）换成 `http://reject/`（404 空响应），
-   让播放器快速失败回退，而不是把空 body 当成分片数据去解析。
+1. 匹配从「`&oad` 子串」收窄成「明确的 oad 查询参数」`[?&]oad(?:=|&|$)`（要求参数边界，
+   `&oadd=`、`&load=`、`&oad_id=` 不再误命中），并排除 `dclk_video_ads`、`videoplayback`、
+   `initplayback`（不碰广告探针、分片与起播握手）；
+2. 拒绝响应用 `http://reject-video/`（空 MP4：播放器立即走失败分支，不会把空 body 当分片解析），
+   而非 `http://reject-200/`（200 空体）或此前一版的 `http://reject/`（404 空响应）。
 
-**证据边界**：三项是整体验证的，无法断言到底是哪一项单独生效，因此本模块把它们作为**一个组合**
-整体保留，不做拆分、不逐项宣传。其它 3 条空体 `respond` 200 规则（`api/stats/ads`、
+**已知代价（如实标注）**：窄匹配天然会放过部分边缘 OAD 变体——排除列表里
+`dclk_video_ads?` / `videoplayback?` / `initplayback?` 路径上的 oad 参数，以及 `googlevideo.com`
+以外主机上的 OAD 请求，这些广告可能**不被拦截**（边缘广告覆盖减少）。这是用户看到该取舍后
+主动选择的方案（真机体感优先），本模块按其选择发布，**不擅自改回宽匹配**。
+
+**真机反馈**：2026-11-24 用户把该组合装成独立测试模块在 iPhone 上跑，反馈「很丝滑」并说
+「用这个吧」。正式模块此前是「`&oad` 宽匹配 + 200 空体」，上一轮是「窄匹配 + `http://reject/` 404」;
+本次据用户反馈把该组合正式落地。其它 3 条空体 `respond` 200 规则（`api/stats/ads`、
 `pagead|ptracking`、`api/stats/qoe?adcontext` 等）仍是 `http://reject-200/`，本特例不影响它们。
 
-**防漂移**：那条上游规则必须逐字等于 `OAD_UPSTREAM_MATCH` 且动作是「空体 `respond` 200」，
-条数必须恰好 1；否则 `sync.py` 非零退出、**不写任何文件**（上一版生成物保留）。
-生成后 `verify()` 里的 `_assert_oad()` 还会断言输出正则/location 与上面这版逐字一致，
-并用正负样本回归：`?oad=1`、`&oad`、`&oad&` 命中；`videoplayback?`、`initplayback?`、
-`dclk_video_ads?`、`&oadd=`、`&load=`、`&oad_id=` 不命中。
-
-**真机反馈**：2026-11-24 用户把这条组合装成独立测试模块在 iPhone 上跑，反馈「顺了」
-（正式模块此前用「`&oad` 宽匹配 + 200 空体」）。本仓库据此把该组合同步进正式模块。
+**防漂移**：上游那条规则必须逐字等于 `OAD_UPSTREAM_MATCHES` 里的已知字面量、动作是对应的空体
+`respond` 200/404，且条数恰好 1；否则 `sync.py` 非零退出、**不写任何文件**。生成后
+`_assert_oad()` 断言输出正则/location 与上面逐字一致，并回归正负样本：`?oad=1`、`&oad`、
+`&oad&`、`&yt=1&oad=9` 命中；`videoplayback?`、`initplayback?`、`dclk_video_ads?`、`&oadd=`、
+`&load=`、`&oad_id=` 不命中。
 
 ## 自动跟随上游（不需要手改任何 SHA）
 
@@ -183,7 +182,8 @@ Egern → 工具 → 模块 → `+` → 粘贴上面的地址。模块需要 MIT
 - `nativeDownload` 仍是实验性的：未设置画质时按 720p，服务器端限制可能仍生效。
 - 字幕翻译会把字幕文本发给 `translate.googleapis.com`（上游行为，未改动）。
 - 静态校验通过 ≠ 真机可用；本模块未做整模块真机回归（无设备）。已获得的真机反馈只有 OAD 规则
-  这一项：收窄匹配 + 404 空响应的组合在用户 iPhone 上「顺了」（见上节）。其余开关/脚本仍未真机验证。
+  这一项：「窄匹配 + `http://reject-video/` 空 MP4」在用户 iPhone 上「很丝滑」并被明确选用；
+  该组合会放过部分边缘 OAD 变体（见上节「已知代价」）。其余开关/脚本仍未真机验证。
 - `youtube.single.response` 的 `match` 在生成期裁掉了 `youtubei/v1/next`（见 `sync.py` 的 `DROP_MATCH_ALTS`）。
   副作用：`next` 响应不再进入本模块脚本，基于 `next` 响应的去广告/UI 处理（如部分推荐流清理）不再生效；
   `player`、`browse`、`guide`、`log_event` 等其他路径照旧拦截。裁剪只改 YAML 的 `match`，上游脚本正文逐字节未改。

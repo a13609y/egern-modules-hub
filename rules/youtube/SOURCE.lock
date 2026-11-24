@@ -5,9 +5,9 @@
   "upstream": {
     "IBL3ND/js": {
       "branch": "main",
-      "commit": "aa76cd9b4a323b55efa51b8cfe94d92a3dd20126",
+      "commit": "f6b45ea1ac67f71acbc71c4063790dca10dbaa1e",
       "resolved_by": "api:repos/IBL3ND/js/commits/main",
-      "committed_at": "2026-11-23T13:13:10Z",
+      "committed_at": "2026-11-24T11:24:17Z",
       "files": [
         {
           "path": "YT-CC-ASR-Auto.js",
@@ -28,14 +28,14 @@
     },
     "IBL3ND/module": {
       "branch": "main",
-      "commit": "6cb7c889ed43e83adea8e33310ebf3c13f9d7c46",
+      "commit": "bd717c54e9037896e84005f54191a0b8983fdbf0",
       "resolved_by": "api:repos/IBL3ND/module/commits/main",
-      "committed_at": "2026-11-23T12:01:23Z",
+      "committed_at": "2026-11-24T14:12:39Z",
       "files": [
         {
           "path": "Egern-YouTube.yaml",
-          "bytes": 7294,
-          "sha256": "8faa25c71f728cb9883eb465a2600da65581dfd03ed628fe8dd8608cb66fa2d1"
+          "bytes": 7307,
+          "sha256": "69d4c36dcd49eaf45e987387a67629152156bdfaaf2ad9f5a57b6ff6c6418da3"
         }
       ]
     }
@@ -47,20 +47,20 @@
   },
   "outputs": {
     "youtube-dual-subs.js": {
-      "sha256": "07deb44ffb40d3157223880d19e1702f1ac40adfd9d1fc98ceddfd5bfdaffe7f",
+      "sha256": "00b3315d33725fce35f2fd40a0e5406a12303b80a9e2628f4cd56b9db5c22aba",
       "bytes": 15667
     },
     "youtube-request.js": {
-      "sha256": "f3947355591231a5e431f20a5ae6d8eafe3550b85a758ee40345c82dbf30f8e4",
+      "sha256": "940faf878a26a563f76e1da03ed3e2449d497eb840bbc161c837af0145678574",
       "bytes": 14011
     },
     "youtube-response.js": {
-      "sha256": "4da0cf24dbdfcfa073900782976b0cd6dc73b88bca92a0943951f275eebdd713",
+      "sha256": "1942b2c241aef4e734511a985370e530f388d8c31b69b481768e98ee83408888",
       "bytes": 131433
     },
     "youtube.yaml": {
-      "sha256": "fb3cd400308276a46032e13da49d68630d6c2f133ecb68c4f6f9858bf6cd6632",
-      "bytes": 9926
+      "sha256": "a447aba922905c3de1fb9569b3715be78255986d7895378d39767206ea8623b4",
+      "bytes": 10054
     }
   }
 }
