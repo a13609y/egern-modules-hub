@@ -76,6 +76,14 @@ BUNDLE_SRC = {v[0]: v[1] for v in BUNDLE.values()}
 # youtube.single.response 去掉 youtubei/v1/next：next 是刷视频时的推荐流热路径，
 # 拦它会让 next 响应的去广告/UI 处理后置到播放链路上，影响流畅度；player/browse 等路径照旧。
 DROP_MATCH_ALTS = {"youtube.single.response": ("next",)}
+# 用户设备验证有效的 OAD 规则组合（2026 真机反馈「顺了」）：只做**一处**特例变换，
+# 就是上游那条 googlevideo &oad 的空体 respond 200。三项改动是同一次真机测试一起验证的
+# 组合——收窄到明确 oad 查询参数 + 排除 videoplayback/initplayback + 404 空响应，
+# 无法断言是哪一项单独生效，因此三项作为一个整体上线，不做拆分。
+# 上游那条 match 必须逐字等于 OAD_UPSTREAM_MATCH 才允许变换；结构不符/条数不为 1 一律硬失败。
+OAD_UPSTREAM_MATCH = r"^https?:\/\/[\w-]+\.googlevideo\.com\/(?!(dclk_video_ads|videoplayback\?)).+&oad"
+OAD_MATCH = r"^https?:\/\/[\w-]+\.googlevideo\.com\/(?!(?:dclk_video_ads|videoplayback\?|initplayback\?)).*[?&]oad(?:=|&|$)"
+OAD_LOCATION = "http://reject/"  # 404 空响应，让播放器快速失败回退，而不是把空 body 当分片解析
 # 上游允许的外联主机（字幕翻译是唯一的出站请求）；出现新主机即人工复核
 ALLOWED_HOSTS = {"translate.googleapis.com"}
 
@@ -152,13 +160,27 @@ def fetch_source(key: str, shas: dict) -> str:
 
 # ── 转换 ────────────────────────────────────────────────────────────────
 def convert_rewrites(entries: list) -> list:
-    """上游统一 rewrites（redirect/respond）→ 官方文档化的 url_rewrites。"""
-    out = []
+    """上游统一 rewrites（redirect/respond）→ 官方文档化的 url_rewrites。
+
+    唯一特例：恰好一条 OAD googlevideo rewrite（match 逐字等于 OAD_UPSTREAM_MATCH、
+    动作为空体 respond 200）换成真机验证有效的组合（OAD_MATCH + http://reject/）。
+    条数不为 1、或那条动作结构不符 → 硬失败（调用点在写盘之前，故不写任何文件）。
+    其余 respond 200 空体规则仍走通用映射 -> http://reject-200/，本特例不影响它们。
+    """
+    out, oad = [], 0
     for i, e in enumerate(entries):
         acts = e.get("actions") or []
         if len(acts) != 1:
             raise SystemExit(f"[FAIL] rewrites[{i}] 动作数不是 1，无法确定性转换")
         a = acts[0]
+        if e.get("match") == OAD_UPSTREAM_MATCH:
+            r = a.get("respond") if isinstance(a.get("respond"), dict) else None
+            if r is None or r.get("body") or r.get("headers") or r.get("status") != 200:
+                raise SystemExit(
+                    f"[FAIL] rewrites[{i}] 被识别为 OAD 规则但动作不是空体 respond 200: {succinct(a)}")
+            oad += 1
+            out.append({"match": OAD_MATCH, "location": OAD_LOCATION})
+            continue
         if "redirect" in a:
             r = a["redirect"]
             if r.get("status") not in (301, 302, 307, 308):
@@ -180,6 +202,8 @@ def convert_rewrites(entries: list) -> list:
                 out.append({"match": e["match"], "location": "http://reject-200/"})
         else:
             raise SystemExit(f"[FAIL] rewrites[{i}] 未知动作: {succinct(a)}")
+    if oad != 1:
+        raise SystemExit(f"[FAIL] OAD googlevideo rewrite 条数为 {oad}，期望恰好 1（上游结构变化，需人工复核）")
     return out
 
 
@@ -327,6 +351,9 @@ def build(module_yaml: str, js: dict, shas: dict) -> tuple[str, dict, dict, int]
             "# 上游统一 rewrites 的 {n} 条已逐条转成官方文档化的 url_rewrites（reject-200 / 重定向）。\n"
             "# 上游脚本 match 有一处生成期裁剪：youtube.single.response 去掉 youtubei/v1/next（{drop}），\n"
             "#   即 next 响应不再被拦截/处理，player、browse 等其他路径照旧；上游脚本正文未改。\n"
+            "# OAD 规则（上游 Googlevideo 的 &oad 空体 respond 200）有且仅有一处特例：换成真机验证\n"
+            "#   有效的组合 —— 收窄到参数边界 [?&]oad(?:=|&|$) 并排除 videoplayback/initplayback/dclk_video_ads，\n"
+            "#   拒绝方式改 404 空响应 http://reject/（原为 http://reject-200/）；其余 respond 200 规则不变。\n"
             .format(m=shas["IBL3ND/module"], m8=shas["IBL3ND/module"][:8],
                     j=shas["IBL3ND/js"], j8=shas["IBL3ND/js"][:8],
                     lock=LOCK_NAME, n=n_rw,
@@ -336,6 +363,28 @@ def build(module_yaml: str, js: dict, shas: dict) -> tuple[str, dict, dict, int]
     bundles = {BUNDLE_SRC[pkey]: bundle(pkey, js[pkey], shas)
                for pkey in ("request", "response", "dual_subs")}
     return text, bundles, out, n_rw
+
+
+def _assert_oad(d: dict) -> None:
+    """OAD 规则不漂移：输出正则/location 与真机验证有效的测试版逐字一致，正负样本都对。"""
+    rws = [r for r in d["url_rewrites"] if "googlevideo" in r["match"] and "oad" in r["match"]]
+    assert len(rws) == 1, f"OAD url_rewrites 条数为 {len(rws)}，期望 1"
+    r = rws[0]
+    assert r["match"] == OAD_MATCH, f"OAD match 漂移: {r['match']!r}"
+    assert r["location"] == OAD_LOCATION, f"OAD location 漂移: {r['location']!r}"
+    assert "status_code" not in r, "OAD 规则不应带 status_code（http://reject/ 本身即 404 空响应）"
+    rx = re.compile(r["match"])
+    g = "https://rr1---sn-abc.googlevideo.com/"
+    pos = [g + "abc?oad=1", g + "abc?x=1&oad", g + "abc?x=1&oad&y=2", g + "abc?x=1&yt=1&oad=9"]
+    neg = [g + "videoplayback?id=1&oad=1", g + "videoplayback?x=1&oad=1",
+           g + "initplayback?x=1&oad=1", g + "dclk_video_ads?oad=1",
+           g + "abc?x=1&oadd=2", g + "abc?x=1&load=1", g + "abc?x=1&oad_id=2"]
+    for u in pos:
+        assert rx.match(u), f"OAD 正则漏匹配正常 oad 请求: {u}"
+    for u in neg:
+        assert not rx.match(u), f"OAD 正则误匹配（应排除/需参数边界）: {u}"
+    # 收窄确实生效：上游旧写法会放过的 &oadd= 边界情况，新写法不放过
+    assert re.compile(OAD_UPSTREAM_MATCH).match(neg[4]), "上游旧 OAD 写法不再匹配 &oadd（基线变化，需复核）"
 
 
 def verify(text: str, bundles: dict, out: dict, js: dict, n_rw: int) -> None:
@@ -367,6 +416,7 @@ def verify(text: str, bundles: dict, out: dict, js: dict, n_rw: int) -> None:
     for must in ("youtubei.googleapis.com", "www.youtube.com", "*.googlevideo.com"):
         assert must in inc, f"mitm 缺少 {must}"
     assert len(d["url_rewrites"]) == n_rw, "url_rewrites 条数与上游 rewrites 不一致"
+    _assert_oad(d)
 
 
 def main() -> None:

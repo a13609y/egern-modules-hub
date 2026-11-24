@@ -8,6 +8,9 @@
 # 上游统一 rewrites 的 9 条已逐条转成官方文档化的 url_rewrites（reject-200 / 重定向）。
 # 上游脚本 match 有一处生成期裁剪：youtube.single.response 去掉 youtubei/v1/next（youtube.single.response←next），
 #   即 next 响应不再被拦截/处理，player、browse 等其他路径照旧；上游脚本正文未改。
+# OAD 规则（上游 Googlevideo 的 &oad 空体 respond 200）有且仅有一处特例：换成真机验证
+#   有效的组合 —— 收窄到参数边界 [?&]oad(?:=|&|$) 并排除 videoplayback/initplayback/dclk_video_ads，
+#   拒绝方式改 404 空响应 http://reject/（原为 http://reject-200/）；其余 respond 200 规则不变。
 name: '📺 YouTube: ✨ 增强'
 description: 'YouTube 去广告、后台播放、画中画、最高画质与原生下载。
 
@@ -88,8 +91,8 @@ url_rewrites:
 - match: (^https?:\/\/[\w-]+\.googlevideo\.com\/(?!dclk_video_ads).+?)&ctier=L(&.+?),ctier,(.+)
   location: $1$2$3
   status_code: 302
-- match: ^https?:\/\/[\w-]+\.googlevideo\.com\/(?!(dclk_video_ads|videoplayback\?)).+&oad
-  location: http://reject-200/
+- match: ^https?:\/\/[\w-]+\.googlevideo\.com\/(?!(?:dclk_video_ads|videoplayback\?|initplayback\?)).*[?&]oad(?:=|&|$)
+  location: http://reject/
 - match: ^https?:\/\/(www|s)\.youtube\.com\/api\/stats\/ads
   location: http://reject-200/
 - match: ^https?:\/\/(www|s)\.youtube\.com\/(pagead|ptracking)
