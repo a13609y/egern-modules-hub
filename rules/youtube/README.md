@@ -143,6 +143,9 @@ Egern → 工具 → 模块 → `+` → 粘贴上面的地址。模块需要 MIT
 - `nativeDownload` 仍是实验性的：未设置画质时按 720p，服务器端限制可能仍生效。
 - 字幕翻译会把字幕文本发给 `translate.googleapis.com`（上游行为，未改动）。
 - 静态校验通过 ≠ 真机可用；本模块未在 iPhone 上跑 Egern 真机回归（无设备）。
+- `youtube.single.response` 的 `match` 在生成期裁掉了 `youtubei/v1/next`（见 `sync.py` 的 `DROP_MATCH_ALTS`）。
+  副作用：`next` 响应不再进入本模块脚本，基于 `next` 响应的去广告/UI 处理（如部分推荐流清理）不再生效；
+  `player`、`browse`、`guide`、`log_event` 等其他路径照旧拦截。裁剪只改 YAML 的 `match`，上游脚本正文逐字节未改。
 
 ## 复跑与验收
 

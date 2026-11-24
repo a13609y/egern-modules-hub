@@ -6,6 +6,8 @@
 # 许可：含源自 Apache-2.0 项目的内容（Maasea/sgmodule → gholts）；IBL3ND/* 两仓均无 LICENSE，
 #   本模块整体再分发许可状态待权利人确认，详见同目录 NOTICE（LICENSE 为 Maasea 原文，非整体授权）。
 # 上游统一 rewrites 的 9 条已逐条转成官方文档化的 url_rewrites（reject-200 / 重定向）。
+# 上游脚本 match 有一处生成期裁剪：youtube.single.response 去掉 youtubei/v1/next（youtube.single.response←next），
+#   即 next 响应不再被拦截/处理，player、browse 等其他路径照旧；上游脚本正文未改。
 name: '📺 YouTube: ✨ 增强'
 description: 'YouTube 去广告、后台播放、画中画、最高画质与原生下载。
 
@@ -154,7 +156,7 @@ scriptings:
       nativeDownload: 'false'
 - http_response:
     name: youtube.single.response
-    match: ^https:\/\/youtubei\.googleapis\.com\/youtubei\/v1\/(?:navigation\/resolve_url|browse|next|player|search|reel\/reel_watch_sequence|guide|account\/get_setting|get_watch|log_event|config)(?:\?.*)?$
+    match: ^https:\/\/youtubei\.googleapis\.com\/youtubei\/v1\/(?:navigation\/resolve_url|browse|player|search|reel\/reel_watch_sequence|guide|account\/get_setting|get_watch|log_event|config)(?:\?.*)?$
     script_url: https://raw.githubusercontent.com/a13609y/egern-modules-hub/main/rules/youtube/youtube-response.js
     max_size: -1
     body_required: true

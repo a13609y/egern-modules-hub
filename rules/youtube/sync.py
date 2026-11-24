@@ -72,6 +72,10 @@ BUNDLE = {"youtube-request.js": ("request", "youtube-request.js"),
           "youtube-response.js": ("response", "youtube-response.js"),
           "YT-CC-ASR-Auto.js": ("dual_subs", "youtube-dual-subs.js")}
 BUNDLE_SRC = {v[0]: v[1] for v in BUNDLE.values()}
+# 生成期对上游 match 的确定性裁剪（只裁拦截路径，上游脚本正文逐字节不动）。
+# youtube.single.response 去掉 youtubei/v1/next：next 是刷视频时的推荐流热路径，
+# 拦它会让 next 响应的去广告/UI 处理后置到播放链路上，影响流畅度；player/browse 等路径照旧。
+DROP_MATCH_ALTS = {"youtube.single.response": ("next",)}
 # 上游允许的外联主机（字幕翻译是唯一的出站请求）；出现新主机即人工复核
 ALLOWED_HOSTS = {"translate.googleapis.com"}
 
@@ -183,6 +187,38 @@ def succinct(a: object) -> str:
     return json.dumps(a, ensure_ascii=False)[:120]
 
 
+def _assert_match(name: str, match: str) -> None:
+    """裁剪后的自检：/next 不再命中，player / browse 仍命中。"""
+    rx = re.compile(match)
+    api = "https://youtubei.googleapis.com/youtubei/v1/"
+    assert not rx.match(api + "next?key=x"), f"{name} 裁剪后仍匹配 /next"
+    for keep in ("player", "browse"):
+        assert rx.match(api + keep + "?key=x"), f"{name} 裁剪后不再匹配 /{keep}"
+
+
+def convert_match(name: str, match: str) -> str:
+    """按 DROP_MATCH_ALTS 从 match 的 (?:…) 交替分支里删掉指定路径。
+
+    上游结构一变（分支消失 / 组不再是 (?:a|b|c)）就硬失败，不静默留下会被拦的 /next。
+    """
+    alts = DROP_MATCH_ALTS.get(name)
+    if not alts:
+        return match
+    g = re.search(r"\(\?:(.+?)\)", match)
+    if not g:
+        raise SystemExit(f"[FAIL] {name} 的 match 找不到 (?:…) 交替组，无法裁剪 {list(alts)}")
+    parts = g.group(1).split("|")
+    missing = [a for a in alts if a not in parts]
+    if missing:
+        raise SystemExit(f"[FAIL] {name} 的 match 已无分支 {missing}（上游结构变化，需人工复核）")
+    kept = [p for p in parts if p not in alts]
+    if not kept:
+        raise SystemExit(f"[FAIL] {name} 的 match 裁剪后为空")
+    out = match[:g.start(1)] + "|".join(kept) + match[g.end(1):]
+    _assert_match(name, out)
+    return out
+
+
 def prelude(kind: str, commit: str) -> str:
     toggles = ",".join(f"{k}: {'true' if d else 'false'}" for k, d, _, _ in TOGGLES)
     return f'''/*! YouTube 增强 · Egern 原生开关桥（由 rules/youtube/sync.py 生成，勿手改）
@@ -251,6 +287,7 @@ def build(module_yaml: str, js: dict, shas: dict) -> tuple[str, dict, dict, int]
         if set(env_old) - {"_compat.$argument"}:
             raise SystemExit(f"[FAIL] 脚本 {cfg['name']} 出现未处理的环境变量 {sorted(env_old)}")
         cfg = {k: v for k, v in cfg.items() if k != "env"}
+        cfg["match"] = convert_match(cfg["name"], cfg["match"])
         cfg["script_url"] = f"{RAW}/{outfile}"
         cfg["env"] = {k: ("true" if d else "false") for k, d, _, _ in TOGGLES}
         scripts.append({kind: cfg})
@@ -288,9 +325,12 @@ def build(module_yaml: str, js: dict, shas: dict) -> tuple[str, dict, dict, int]
             "# 许可：含源自 Apache-2.0 项目的内容（Maasea/sgmodule → gholts）；IBL3ND/* 两仓均无 LICENSE，\n"
             "#   本模块整体再分发许可状态待权利人确认，详见同目录 NOTICE（LICENSE 为 Maasea 原文，非整体授权）。\n"
             "# 上游统一 rewrites 的 {n} 条已逐条转成官方文档化的 url_rewrites（reject-200 / 重定向）。\n"
+            "# 上游脚本 match 有一处生成期裁剪：youtube.single.response 去掉 youtubei/v1/next（{drop}），\n"
+            "#   即 next 响应不再被拦截/处理，player、browse 等其他路径照旧；上游脚本正文未改。\n"
             .format(m=shas["IBL3ND/module"], m8=shas["IBL3ND/module"][:8],
                     j=shas["IBL3ND/js"], j8=shas["IBL3ND/js"][:8],
-                    lock=LOCK_NAME, n=n_rw)
+                    lock=LOCK_NAME, n=n_rw,
+                    drop=", ".join(f"{k}←{'|'.join(v)}" for k, v in sorted(DROP_MATCH_ALTS.items())))
             + yaml.safe_dump(out, allow_unicode=True, sort_keys=False, width=10000))
 
     bundles = {BUNDLE_SRC[pkey]: bundle(pkey, js[pkey], shas)
@@ -312,6 +352,9 @@ def verify(text: str, bundles: dict, out: dict, js: dict, n_rw: int) -> None:
         assert set(cfg["env"]) == set(TOGGLE_KEYS), f"{cfg['name']} env 不完整"
         assert set(cfg["env"].values()) == {"false"}, f"{cfg['name']} 开关默认必须全关"
         assert "{{{" not in json.dumps(cfg), f"{cfg['name']} 残留占位符"
+        kept = DROP_MATCH_ALTS.get(cfg["name"], ())
+        if kept:
+            _assert_match(cfg["name"], cfg["match"])
     for name, b in bundles.items():
         assert "_compat" not in b, f"{name} 残留兼容字段"
         assert "export default async function" in b and "$argument" in b, f"{name} 前缀异常"
