@@ -15,7 +15,7 @@ Egern → 工具 → 模块 → `+` → 粘贴上面的地址。模块需要 MIT
 
 ## 参数（8 个原生开关）
 
-全部由 YAML 的 `env_schema` 生成模块设置页的 Toggle，默认全开：
+全部由 YAML 的 `env_schema` 生成模块设置页的 Toggle，**默认全部关闭**（装好后模块只做去广告 / 后台播放等无开关的基础功能；8 个增强开关需在模块设置页手动打开才生效）：
 
 | 开关（env 键） | 名称 | 关闭后的效果 |
 | --- | --- | --- |
@@ -28,13 +28,28 @@ Egern → 工具 → 模块 → `+` → 粘贴上面的地址。模块需要 MIT
 | `blockStore` | 隐藏商店和购物板块 | 恢复创作者商店 / 购物板块 |
 | `nativeDownload` | 原生下载（实验性） | 关闭原生下载改写（脚本仍会加载，行为回到上游默认） |
 
-值接受 `true/false`（也接受 `1/0/on/off/yes/no`），非法值按默认 `true`。
+取值规则：只有合法真值 `true` / `1` / `on` / `yes`（大小写不敏感）会把开关打开；未设置、空值、`false` / `0` / `off` / `no` 以及任何非法值一律按**关闭**处理 —— 默认全关，不会因为上游配置残留或手误输入而误开。
 
 - 官方文档依据（2026-11-23 抓取）：`/zh-CN/docs/configuration/modules` 的 `env_schema` 条目写明
   `options: ["true", "false"]` 会生成 **Toggle**、键名即环境变量名，且「用户未主动设置时不会写入 `env`」
   （即用户设置后会写入脚本 `env`）；`/zh-CN/docs/configuration/scriptings` 写明脚本里的 `env`
   **可通过 `ctx.env` 访问**。开关桥读 `ctx.env[<键名>]` 因此是文档化路径，不是猜测。
   未验证项：真机上「模块设置页改动 → 写入 env」的生效时机（无设备可测）。
+
+### 默认值与实现路径（为什么默认关得住）
+
+- `env_schema` 的 `options: ["true", "false"]` 保留不动（这是 Egern 渲染 Toggle 的必要条件，
+  `sync.py` 的 `verify()` 现在把它当门禁校验）。
+- 三个 `scriptings` 的 `env` 由 `sync.py` 按 `TOGGLES` 生成，8 个键一律写成 `'false'`，
+  这是文档化的默认值载体（`env` 是脚本可见的初始环境）。
+- 脚本前缀（开关桥）再做一次兜底：`ctx.env[键]` 缺失 / 空 / 非真值 → `false`，
+  只有 `true|1|on|yes` → `true`；因此即使 Egern 版本差异导致 `env` 未下发，行为仍是全关。
+- **未采用 `env_schema` 的 `default_value: 'false'`**：本仓库抓取的官方 `env_schema` 文档片段
+  只覆盖 `name` / `description` / `options`，未核到 `default_value` 字段；按 AGENTS.md
+  「核过 schema 才可写」，不写入未核实字段，默认值改由上面两个已文档化的位置保证。
+  若日后官方文档出现 `default_value`，在 `sync.py` 的 `env_schema` 生成处加一行即可。
+- 回归测试：`node rules/youtube/test-toggles.mjs`（读生成物，校验 YAML 的 `env_schema` /
+  `scriptings.env`，并真实执行开关桥验证「缺失 / false / true / 非法值」四种输入）。
 
 ### 与原版参数的差异
 
@@ -135,6 +150,7 @@ Egern → 工具 → 模块 → `+` → 粘贴上面的地址。模块需要 MIT
 python3 rules/youtube/sync.py --check   # 只校验不写盘：上游哈希、转换、静态扫描
 python3 rules/youtube/sync.py           # 重新生成 youtube.yaml + 3 个 bundle（无变化则不写）
 sh scripts/check_all.sh                 # 全仓门禁（含 YAML/字段/链接校验）
+node rules/youtube/test-toggles.mjs     # 开关默认关 + 开关桥行为（离线，无网络）
 ```
 
 `--check` 输出示例（本文件生成时的真实输出）：

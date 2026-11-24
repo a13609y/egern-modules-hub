@@ -5,13 +5,13 @@
  */
 export default async function (ctx) {
   var __ytEnv = (ctx && ctx.env) || {};
-  var __ytDef = {blockUpload: true,blockShorts: true,autoHd: true,blockGames: true,blockVerticalLive: true,jumpAhead: true,blockStore: true,nativeDownload: true};
+  var __ytDef = {blockUpload: false,blockShorts: false,autoHd: false,blockGames: false,blockVerticalLive: false,jumpAhead: false,blockStore: false,nativeDownload: false};
   var __ytArg = {};
   for (var __k in __ytDef) {
     var __v = __ytEnv[__k];
-    var __off = (__v === undefined || __v === null || String(__v).trim() === "");
-    __ytArg[__k] = __off ? __ytDef[__k]
-      : !/^(false|0|off|no)$/i.test(String(__v).trim().replace(/^\\?/, ""));
+    var __raw = (__v === undefined || __v === null) ? "" : String(__v).trim();
+    // 只有合法真值才开启；未设置 / 空 / false|0|off|no / 任意非法值一律关闭
+    __ytArg[__k] = __raw === "" ? __ytDef[__k] : /^(true|1|on|yes)$/i.test(__raw);
   }
   try { globalThis.$argument = JSON.stringify(__ytArg); } catch (e) {}
 

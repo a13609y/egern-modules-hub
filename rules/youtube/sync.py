@@ -58,14 +58,14 @@ MAX_BYTES = 4 * 1024 * 1024
 
 # key, 默认, UI 名称, 说明（顺序即菜单顺序）
 TOGGLES = [
-    ("blockUpload", True, "隐藏「上传」入口", "隐藏导航栏中的「上传」入口"),
-    ("blockShorts", True, "隐藏「Shorts」入口", "隐藏导航栏中的「Shorts」入口"),
-    ("autoHd", True, "自动最高画质", "优先使用最高可用画质，并阻止自动降低画质"),
-    ("blockGames", True, "隐藏小游戏推荐", "隐藏 YouTube Playables（小游戏）推荐"),
-    ("blockVerticalLive", True, "隐藏竖屏直播推荐", "隐藏各界面中的竖屏直播推荐"),
-    ("jumpAhead", True, "启用 Jump Ahead", "启用原生「Jump Ahead」跳转按钮，并去除其推广提示"),
-    ("blockStore", True, "隐藏商店和购物板块", "隐藏视频下方和频道主页中的创作者商店、购物板块"),
-    ("nativeDownload", True, "原生下载（实验性）", "实验性原生下载；未设置画质时使用 720p，服务器限制仍可能生效"),
+    ("blockUpload", False,"隐藏「上传」入口", "隐藏导航栏中的「上传」入口"),
+    ("blockShorts", False,"隐藏「Shorts」入口", "隐藏导航栏中的「Shorts」入口"),
+    ("autoHd", False,"自动最高画质", "优先使用最高可用画质，并阻止自动降低画质"),
+    ("blockGames", False,"隐藏小游戏推荐", "隐藏 YouTube Playables（小游戏）推荐"),
+    ("blockVerticalLive", False,"隐藏竖屏直播推荐", "隐藏各界面中的竖屏直播推荐"),
+    ("jumpAhead", False,"启用 Jump Ahead", "启用原生「Jump Ahead」跳转按钮，并去除其推广提示"),
+    ("blockStore", False,"隐藏商店和购物板块", "隐藏视频下方和频道主页中的创作者商店、购物板块"),
+    ("nativeDownload", False,"原生下载（实验性）", "实验性原生下载；未设置画质时使用 720p，服务器限制仍可能生效"),
 ]
 TOGGLE_KEYS = [t[0] for t in TOGGLES]
 BUNDLE = {"youtube-request.js": ("request", "youtube-request.js"),
@@ -196,9 +196,9 @@ export default async function (ctx) {{
   var __ytArg = {{}};
   for (var __k in __ytDef) {{
     var __v = __ytEnv[__k];
-    var __off = (__v === undefined || __v === null || String(__v).trim() === "");
-    __ytArg[__k] = __off ? __ytDef[__k]
-      : !/^(false|0|off|no)$/i.test(String(__v).trim().replace(/^\\\\?/, ""));
+    var __raw = (__v === undefined || __v === null) ? "" : String(__v).trim();
+    // 只有合法真值才开启；未设置 / 空 / false|0|off|no / 任意非法值一律关闭
+    __ytArg[__k] = __raw === "" ? __ytDef[__k] : /^(true|1|on|yes)$/i.test(__raw);
   }}
   try {{ globalThis.$argument = JSON.stringify(__ytArg); }} catch (e) {{}}
 '''
@@ -262,6 +262,7 @@ def build(module_yaml: str, js: dict, shas: dict) -> tuple[str, dict, dict, int]
         "name": "📺 YouTube: ✨ 增强",
         "description": ("YouTube 去广告、后台播放、画中画、最高画质与原生下载。\n"
                         "8 个开关是本仓库生成的 Egern 原生 env_schema（不再是 compat_arguments 占位符）。\n"
+                        "8 个开关默认全部关闭，只有在模块设置页手动打开后才生效。\n"
                         "上游：IBL3ND/module@%s · IBL3ND/js@%s · 原始来源 Maasea（Apache-2.0）→ gholts。"
                         % (shas["IBL3ND/module"][:8], shas["IBL3ND/js"][:8])),
         "author": "Maasea, gholts, IBL3ND（Egern 原生化与整合：a13609y/egern-modules-hub）",
@@ -301,11 +302,15 @@ def verify(text: str, bundles: dict, out: dict, js: dict, n_rw: int) -> None:
     d = yaml.safe_load(text)
     assert set(d["env_schema"]) == set(TOGGLE_KEYS), "env_schema 与开关表不一致"
     assert "compat_arguments" not in d and "rewrites" not in d, "仍有兼容字段残留"
+    assert not any(dflt for _k, dflt, _n, _d in TOGGLES), "TOGGLES 默认必须全关"
+    for k, v in d["env_schema"].items():
+        assert v.get("options") == ["true", "false"], f"env_schema[{k}] 必须保留 options 才能渲染 Toggle"
     assert len(d["scriptings"]) >= 8, "脚本条目少于上游"
     for s in d["scriptings"]:
         cfg = next(iter(s.values()))
         assert cfg["script_url"].startswith(RAW + "/"), "script_url 未指向本仓库"
         assert set(cfg["env"]) == set(TOGGLE_KEYS), f"{cfg['name']} env 不完整"
+        assert set(cfg["env"].values()) == {"false"}, f"{cfg['name']} 开关默认必须全关"
         assert "{{{" not in json.dumps(cfg), f"{cfg['name']} 残留占位符"
     for name, b in bundles.items():
         assert "_compat" not in b, f"{name} 残留兼容字段"

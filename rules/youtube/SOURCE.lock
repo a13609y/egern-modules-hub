@@ -47,20 +47,20 @@
   },
   "outputs": {
     "youtube-dual-subs.js": {
-      "sha256": "99e39fdc01c3cb652722e50db10385ebbcdedff9767658ce76a9ba5cc94418b1",
-      "bytes": 15596
+      "sha256": "07deb44ffb40d3157223880d19e1702f1ac40adfd9d1fc98ceddfd5bfdaffe7f",
+      "bytes": 15667
     },
     "youtube-request.js": {
-      "sha256": "dbe467f64759f8f8dc231f5c4ad59c7195885b000918dc243d54c70bbe8bc43c",
-      "bytes": 13940
+      "sha256": "f3947355591231a5e431f20a5ae6d8eafe3550b85a758ee40345c82dbf30f8e4",
+      "bytes": 14011
     },
     "youtube-response.js": {
-      "sha256": "7f730ad8fb1a35ffbf748c88b93ca6c778ac76c66b25ad9fc0683627de84f809",
-      "bytes": 131362
+      "sha256": "4da0cf24dbdfcfa073900782976b0cd6dc73b88bca92a0943951f275eebdd713",
+      "bytes": 131433
     },
     "youtube.yaml": {
-      "sha256": "8d28b8db2f2c9042a9046bb1d27231734a4d8f6fe8c33cfbe0bd77e4e6863de0",
-      "bytes": 9152
+      "sha256": "96fb168d6f07e454a4abe32850fabdbc06e7fa8f7d9728f8b9319899ace4040a",
+      "bytes": 9311
     }
   }
 }

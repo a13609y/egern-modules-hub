@@ -11,6 +11,8 @@ description: 'YouTube 去广告、后台播放、画中画、最高画质与原�
 
   8 个开关是本仓库生成的 Egern 原生 env_schema（不再是 compat_arguments 占位符）。
 
+  8 个开关默认全部关闭，只有在模块设置页手动打开后才生效。
+
   上游：IBL3ND/module@6cb7c889 · IBL3ND/js@aa76cd9b · 原始来源 Maasea（Apache-2.0）→ gholts。'
 author: Maasea, gholts, IBL3ND（Egern 原生化与整合：a13609y/egern-modules-hub）
 homepage: https://github.com/a13609y/egern-modules-hub/tree/main/rules/youtube
@@ -110,14 +112,14 @@ scriptings:
     match: ^https:\/\/youtubei\.googleapis\.com\/youtubei\/v1\/player\/ad_break(?:\?.*)?$
     script_url: https://raw.githubusercontent.com/a13609y/egern-modules-hub/main/rules/youtube/youtube-request.js
     env:
-      blockUpload: 'true'
-      blockShorts: 'true'
-      autoHd: 'true'
-      blockGames: 'true'
-      blockVerticalLive: 'true'
-      jumpAhead: 'true'
-      blockStore: 'true'
-      nativeDownload: 'true'
+      blockUpload: 'false'
+      blockShorts: 'false'
+      autoHd: 'false'
+      blockGames: 'false'
+      blockVerticalLive: 'false'
+      jumpAhead: 'false'
+      blockStore: 'false'
+      nativeDownload: 'false'
 - http_response:
     name: youtube.single.download
     match: ^https:\/\/youtubei\.googleapis\.com\/youtubei\/v1\/offline\/get_download_action(?:\?.*)?$
@@ -126,14 +128,14 @@ scriptings:
     body_required: true
     binary_body: true
     env:
-      blockUpload: 'true'
-      blockShorts: 'true'
-      autoHd: 'true'
-      blockGames: 'true'
-      blockVerticalLive: 'true'
-      jumpAhead: 'true'
-      blockStore: 'true'
-      nativeDownload: 'true'
+      blockUpload: 'false'
+      blockShorts: 'false'
+      autoHd: 'false'
+      blockGames: 'false'
+      blockVerticalLive: 'false'
+      jumpAhead: 'false'
+      blockStore: 'false'
+      nativeDownload: 'false'
 - http_request:
     name: youtube.single.download-player
     match: ^https:\/\/youtubei\.googleapis\.com\/youtubei\/v1\/player(?:\?.*)?$
@@ -142,14 +144,14 @@ scriptings:
     body_required: true
     binary_body: true
     env:
-      blockUpload: 'true'
-      blockShorts: 'true'
-      autoHd: 'true'
-      blockGames: 'true'
-      blockVerticalLive: 'true'
-      jumpAhead: 'true'
-      blockStore: 'true'
-      nativeDownload: 'true'
+      blockUpload: 'false'
+      blockShorts: 'false'
+      autoHd: 'false'
+      blockGames: 'false'
+      blockVerticalLive: 'false'
+      jumpAhead: 'false'
+      blockStore: 'false'
+      nativeDownload: 'false'
 - http_response:
     name: youtube.single.response
     match: ^https:\/\/youtubei\.googleapis\.com\/youtubei\/v1\/(?:navigation\/resolve_url|browse|next|player|search|reel\/reel_watch_sequence|guide|account\/get_setting|get_watch|log_event|config)(?:\?.*)?$
@@ -158,14 +160,14 @@ scriptings:
     body_required: true
     binary_body: true
     env:
-      blockUpload: 'true'
-      blockShorts: 'true'
-      autoHd: 'true'
-      blockGames: 'true'
-      blockVerticalLive: 'true'
-      jumpAhead: 'true'
-      blockStore: 'true'
-      nativeDownload: 'true'
+      blockUpload: 'false'
+      blockShorts: 'false'
+      autoHd: 'false'
+      blockGames: 'false'
+      blockVerticalLive: 'false'
+      jumpAhead: 'false'
+      blockStore: 'false'
+      nativeDownload: 'false'
 - http_response:
     name: youtube.single.ump
     match: ^https?:\/\/[\w-]+\.googlevideo\.com\/initplayback(?:\?.*)?$
@@ -174,14 +176,14 @@ scriptings:
     body_required: true
     binary_body: true
     env:
-      blockUpload: 'true'
-      blockShorts: 'true'
-      autoHd: 'true'
-      blockGames: 'true'
-      blockVerticalLive: 'true'
-      jumpAhead: 'true'
-      blockStore: 'true'
-      nativeDownload: 'true'
+      blockUpload: 'false'
+      blockShorts: 'false'
+      autoHd: 'false'
+      blockGames: 'false'
+      blockVerticalLive: 'false'
+      jumpAhead: 'false'
+      blockStore: 'false'
+      nativeDownload: 'false'
 - http_request:
     name: youtube.single.init
     match: ^https?:\/\/[\w-]+\.googlevideo\.com\/initplayback(?:\?.*)?$
@@ -190,14 +192,14 @@ scriptings:
     body_required: true
     binary_body: true
     env:
-      blockUpload: 'true'
-      blockShorts: 'true'
-      autoHd: 'true'
-      blockGames: 'true'
-      blockVerticalLive: 'true'
-      jumpAhead: 'true'
-      blockStore: 'true'
-      nativeDownload: 'true'
+      blockUpload: 'false'
+      blockShorts: 'false'
+      autoHd: 'false'
+      blockGames: 'false'
+      blockVerticalLive: 'false'
+      jumpAhead: 'false'
+      blockStore: 'false'
+      nativeDownload: 'false'
 - http_request:
     name: youtube.single.auto-hd
     match: ^https?:\/\/[\w-]+\.googlevideo\.com\/videoplayback
@@ -206,14 +208,14 @@ scriptings:
     body_required: true
     binary_body: true
     env:
-      blockUpload: 'true'
-      blockShorts: 'true'
-      autoHd: 'true'
-      blockGames: 'true'
-      blockVerticalLive: 'true'
-      jumpAhead: 'true'
-      blockStore: 'true'
-      nativeDownload: 'true'
+      blockUpload: 'false'
+      blockShorts: 'false'
+      autoHd: 'false'
+      blockGames: 'false'
+      blockVerticalLive: 'false'
+      jumpAhead: 'false'
+      blockStore: 'false'
+      nativeDownload: 'false'
 - http_request:
     name: youtube.single.log-event
     match: ^https:\/\/youtubei\.googleapis\.com\/youtubei\/v1\/log_event
@@ -222,14 +224,14 @@ scriptings:
     body_required: true
     binary_body: true
     env:
-      blockUpload: 'true'
-      blockShorts: 'true'
-      autoHd: 'true'
-      blockGames: 'true'
-      blockVerticalLive: 'true'
-      jumpAhead: 'true'
-      blockStore: 'true'
-      nativeDownload: 'true'
+      blockUpload: 'false'
+      blockShorts: 'false'
+      autoHd: 'false'
+      blockGames: 'false'
+      blockVerticalLive: 'false'
+      jumpAhead: 'false'
+      blockStore: 'false'
+      nativeDownload: 'false'
 - http_response:
     name: youtube.single.dual-subs
     match: ^https://(?:www|m)\.youtube\.com/api/timedtext(?:\?|$)
@@ -237,14 +239,14 @@ scriptings:
     max_size: -1
     body_required: true
     env:
-      blockUpload: 'true'
-      blockShorts: 'true'
-      autoHd: 'true'
-      blockGames: 'true'
-      blockVerticalLive: 'true'
-      jumpAhead: 'true'
-      blockStore: 'true'
-      nativeDownload: 'true'
+      blockUpload: 'false'
+      blockShorts: 'false'
+      autoHd: 'false'
+      blockGames: 'false'
+      blockVerticalLive: 'false'
+      jumpAhead: 'false'
+      blockStore: 'false'
+      nativeDownload: 'false'
 mitm:
   hostnames:
     includes:
