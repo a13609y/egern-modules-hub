@@ -1,0 +1,50 @@
+name: sync-youtube
+
+# 只读 raw.githubusercontent（CDN），不带 token 访问上游；按 sync.py 里固定的 commit SHA
+# + sha256 取快照，因此上游即使被改写也不会改变本仓库输出（哈希不符直接失败）。
+# 关键安全约束：下载回来的上游 JS **只做哈希校验和文本拼装**，本工作流从不执行它；
+# 执行（node）只可能发生在另一道只读门禁 validate.yml 里，且只针对仓库自有脚本。
+on:
+  schedule:
+    - cron: "47 5 * * *" # 每天 05:47 UTC（北京时间 13:47），错开其他 sync-*
+  workflow_dispatch:
+  push:
+    paths:
+      - "rules/youtube/**"
+      - ".github/workflows/sync-youtube.yml"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: sync-youtube
+  cancel-in-progress: true
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 安装依赖（唯一第三方依赖 pyyaml）
+        run: python3 -m pip install --quiet --disable-pip-version-check pyyaml==6.0.2
+
+      - name: 拉固定 SHA 上游 → 确定性重生成 + 自校验
+        run: python3 rules/youtube/sync.py
+
+      - name: 全仓静态校验（不跑任何上游 JS）
+        run: python3 scripts/check_repo.py
+
+      - name: 有变化才提交
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if [ -n "$(git status --porcelain rules/youtube/youtube.yaml rules/youtube/youtube-request.js rules/youtube/youtube-response.js rules/youtube/youtube-dual-subs.js)" ]; then
+            git add rules/youtube/youtube.yaml rules/youtube/youtube-request.js rules/youtube/youtube-response.js rules/youtube/youtube-dual-subs.js
+            git commit -m "chore(youtube): 按固定上游 SHA 重生成 $(date -u +%F)"
+            git push
+            echo "::notice::已同步固定上游快照"
+          else
+            echo "上游快照无变化，不提交"
+          fi
