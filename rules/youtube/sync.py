@@ -88,9 +88,14 @@ DROP_MATCH_ALTS = {"youtube.single.response": ("next",)}
 # 上游这条 match 只认这两份**已知**字面量（都实测存在过）；改成别的写法即硬失败、需人工复核：
 #   old = 6cb7c889 一代（未排除 initplayback，动作 respond 200）
 #   new = bd717c54 一代（排除 initplayback，动作改空体 respond 404）
+# 每份已知字面量允许的空体 respond 状态码集合（上游曾在同一 match 上换过 200/404 动作）：
+#   未排除 initplayback 一代：200（6cb7c889）→ 404（f198745，2026-11-25 上游回退写法并改 404，
+#                             本次 sync 因绑定单值 200 而硬失败，故放宽为该字面量已知的 {200,404}）
+#   排除 initplayback 一代：404（bd717c54）→ 200（更早版本）
+# 输出与上游动作无关：恒为本模块实测定下的 OAD_MATCH + reject-video，故动作在已知集合内即放行。
 OAD_UPSTREAM_MATCHES = {
-    r"^https?:\/\/[\w-]+\.googlevideo\.com\/(?!(dclk_video_ads|videoplayback\?)).+&oad": (200,),
-    r"^https?:\/\/[\w-]+\.googlevideo\.com\/(?!(dclk_video_ads|videoplayback\?|initplayback)).+&oad": (404,),
+    r"^https?:\/\/[\w-]+\.googlevideo\.com\/(?!(dclk_video_ads|videoplayback\?)).+&oad": (200, 404),
+    r"^https?:\/\/[\w-]+\.googlevideo\.com\/(?!(dclk_video_ads|videoplayback\?|initplayback)).+&oad": (404, 200),
 }
 OAD_UPSTREAM_MATCH = next(iter(OAD_UPSTREAM_MATCHES))  # 兼容旧引用：见 OAD_UPSTREAM_MATCHES
 OAD_MATCH = r"^https?:\/\/[\w-]+\.googlevideo\.com\/(?!(?:dclk_video_ads|videoplayback\?|initplayback\?)).*[?&]oad(?:=|&|$)"
@@ -365,7 +370,7 @@ def build(module_yaml: str, js: dict, shas: dict) -> tuple[str, dict, dict, int]
             "# 上游统一 rewrites 的 {n} 条已逐条转成官方文档化的 url_rewrites（reject-200 / 重定向）。\n"
             "# 上游脚本 match 有一处生成期裁剪：youtube.single.response 去掉 youtubei/v1/next（{drop}），\n"
             "#   即 next 响应不再被拦截/处理，player、browse 等其他路径照旧；上游脚本正文未改。\n"
-            "# OAD 规则（上游 Googlevideo 的 &oad 空体 respond 200）有且仅有一处特例：换成用户真机实测\n"
+            "# OAD 规则（上游 Googlevideo 的 &oad 空体 respond，状态码 200/404 均见过）有且仅有一处特例：换成用户真机实测\n"
             "#   「丝滑」并明确选用的组合 —— 窄匹配 [?&]oad(?:=|&|$) 且排除 videoplayback/initplayback/\n"
             "#   dclk_video_ads，拒绝方式改空 MP4 http://reject-video/（原为 http://reject-200/）；其余 respond 200 规则不变。\n"
             "#   已知代价：窄匹配会放过上述三类 URL 上的 oad 变体，边缘广告覆盖可能减少。\n"

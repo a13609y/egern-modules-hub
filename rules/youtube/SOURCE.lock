@@ -28,14 +28,14 @@
     },
     "IBL3ND/module": {
       "branch": "main",
-      "commit": "bd717c54e9037896e84005f54191a0b8983fdbf0",
+      "commit": "f19874571a10c327479c45c39423c66124b101fe",
       "resolved_by": "api:repos/IBL3ND/module/commits/main",
-      "committed_at": "2026-11-24T14:12:39Z",
+      "committed_at": "2026-11-25T04:37:27Z",
       "files": [
         {
           "path": "Egern-YouTube.yaml",
-          "bytes": 7307,
-          "sha256": "69d4c36dcd49eaf45e987387a67629152156bdfaaf2ad9f5a57b6ff6c6418da3"
+          "bytes": 7294,
+          "sha256": "d5452ea78fec908cd1afde4a008e859fb8d3f90635befea3342e82e5941f2240"
         }
       ]
     }
@@ -59,8 +59,8 @@
       "bytes": 131433
     },
     "youtube.yaml": {
-      "sha256": "a447aba922905c3de1fb9569b3715be78255986d7895378d39767206ea8623b4",
-      "bytes": 10054
+      "sha256": "c7cc6e749e9ce3ec1a73c1ae71c8bb2074eda830fdb3a29057ae8d4ba3f9f937",
+      "bytes": 10080
     }
   }
 }
