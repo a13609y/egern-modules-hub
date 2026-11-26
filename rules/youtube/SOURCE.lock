@@ -5,9 +5,9 @@
   "upstream": {
     "IBL3ND/js": {
       "branch": "main",
-      "commit": "f6b45ea1ac67f71acbc71c4063790dca10dbaa1e",
+      "commit": "66e2c34f030fedaf6792f420e80c10bb882cb0de",
       "resolved_by": "api:repos/IBL3ND/js/commits/main",
-      "committed_at": "2026-11-24T11:24:17Z",
+      "committed_at": "2026-11-26T04:08:34Z",
       "files": [
         {
           "path": "YT-CC-ASR-Auto.js",
@@ -28,9 +28,9 @@
     },
     "IBL3ND/module": {
       "branch": "main",
-      "commit": "f19874571a10c327479c45c39423c66124b101fe",
+      "commit": "df376e9b737b484f45f90512a93c4c00c17ed29a",
       "resolved_by": "api:repos/IBL3ND/module/commits/main",
-      "committed_at": "2026-11-25T04:37:27Z",
+      "committed_at": "2026-11-26T04:09:12Z",
       "files": [
         {
           "path": "Egern-YouTube.yaml",
@@ -47,19 +47,19 @@
   },
   "outputs": {
     "youtube-dual-subs.js": {
-      "sha256": "00b3315d33725fce35f2fd40a0e5406a12303b80a9e2628f4cd56b9db5c22aba",
+      "sha256": "a3c25e0fba44ab734a36482b0fcc7c33f07c96f65f54fd00ee8ca1617a463043",
       "bytes": 15667
     },
     "youtube-request.js": {
-      "sha256": "940faf878a26a563f76e1da03ed3e2449d497eb840bbc161c837af0145678574",
+      "sha256": "81ee4355c922d5c23712349bb81b2c7e4065d3582789a2228a12636ccc03f02c",
       "bytes": 14011
     },
     "youtube-response.js": {
-      "sha256": "1942b2c241aef4e734511a985370e530f388d8c31b69b481768e98ee83408888",
+      "sha256": "6282b5128af1a3cc84cc0e5830e149564d4dae84f1f4bd82666e0618bd030e20",
       "bytes": 131433
     },
     "youtube.yaml": {
-      "sha256": "c7cc6e749e9ce3ec1a73c1ae71c8bb2074eda830fdb3a29057ae8d4ba3f9f937",
+      "sha256": "33ad9df7403fc95af86cf035da322aa5aa4cec121a7163f8fb7d3a5f99f9dea0",
       "bytes": 10080
     }
   }

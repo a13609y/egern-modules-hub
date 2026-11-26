@@ -1,6 +1,6 @@
 # 自动生成：python3 rules/youtube/sync.py；上游按本 run 解析到的最新 main 提交取快照
-#   IBL3ND/module @ f19874571a10c327479c45c39423c66124b101fe（f1987457）
-#   IBL3ND/js     @ f6b45ea1ac67f71acbc71c4063790dca10dbaa1e（f6b45ea1）
+#   IBL3ND/module @ df376e9b737b484f45f90512a93c4c00c17ed29a（df376e9b）
+#   IBL3ND/js     @ 66e2c34f030fedaf6792f420e80c10bb882cb0de（66e2c34f）
 # 精确锁定的 repo/commit/path/sha256 见同目录 SOURCE.lock（每次上游一变就自动变更）。
 # 请勿手改本文件；改生成逻辑请改 sync.py，每日 GitHub Actions 会重新解析上游 main 并覆盖本文件。
 # 许可：含源自 Apache-2.0 项目的内容（Maasea/sgmodule → gholts）；IBL3ND/* 两仓均无 LICENSE，
@@ -19,7 +19,7 @@ description: 'YouTube 去广告、后台播放、画中画、最高画质与原�
 
   8 个开关默认全部关闭，只有在模块设置页手动打开后才生效。
 
-  上游：IBL3ND/module@f1987457 · IBL3ND/js@f6b45ea1 · 原始来源 Maasea（Apache-2.0）→ gholts。'
+  上游：IBL3ND/module@df376e9b · IBL3ND/js@66e2c34f · 原始来源 Maasea（Apache-2.0）→ gholts。'
 author: Maasea, gholts, IBL3ND（Egern 原生化与整合：a13609y/egern-modules-hub）
 homepage: https://github.com/a13609y/egern-modules-hub/tree/main/rules/youtube
 icon: play.rectangle.fill
