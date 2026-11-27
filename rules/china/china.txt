@@ -1,6 +1,6 @@
 # 中国规则集（通用文本：DOMAIN-SUFFIX / DOMAIN / IP-CIDR / IP-CIDR6）
 # 自动生成，请勿手改。生成器：rules/china/sync.py
-# 后缀 8348 / 精确 79 / 关键词 0 / 正则 3 / IPv4 6235 / IPv6 3450
+# 后缀 8348 / 精确 79 / 关键词 0 / 正则 3 / IPv4 6235 / IPv6 3449
 
 DOMAIN-SUFFIX,0033.cn
 DOMAIN-SUFFIX,00cdn.com
@@ -12001,7 +12001,6 @@ IP-CIDR,103.116.40.0/22,no-resolve
 IP-CIDR,103.116.76.0/22,no-resolve
 IP-CIDR,103.116.92.0/22,no-resolve
 IP-CIDR,103.116.120.0/22,no-resolve
-IP-CIDR,103.116.128.0/22,no-resolve
 IP-CIDR,103.116.184.0/22,no-resolve
 IP-CIDR,103.116.220.0/22,no-resolve
 IP-CIDR,103.117.16.0/22,no-resolve
@@ -12899,7 +12898,9 @@ IP-CIDR,103.142.180.0/23,no-resolve
 IP-CIDR,103.142.186.0/23,no-resolve
 IP-CIDR,103.142.234.0/23,no-resolve
 IP-CIDR,103.142.238.0/23,no-resolve
+IP-CIDR,103.142.248.0/23,no-resolve
 IP-CIDR,103.143.74.0/23,no-resolve
+IP-CIDR,103.143.120.0/23,no-resolve
 IP-CIDR,103.143.124.0/23,no-resolve
 IP-CIDR,103.143.174.0/23,no-resolve
 IP-CIDR,103.143.228.0/23,no-resolve
@@ -13623,7 +13624,6 @@ IP-CIDR,103.71.49.0/24,no-resolve
 IP-CIDR,103.72.233.0/24,no-resolve
 IP-CIDR,103.92.86.0/24,no-resolve
 IP-CIDR,103.97.229.0/24,no-resolve
-IP-CIDR,103.99.53.0/24,no-resolve
 IP-CIDR,103.99.55.0/24,no-resolve
 IP-CIDR,103.100.62.0/24,no-resolve
 IP-CIDR,103.105.133.0/24,no-resolve
@@ -17974,7 +17974,6 @@ IP-CIDR6,2406:840:980d::/48,no-resolve
 IP-CIDR6,2406:840:9811::/48,no-resolve
 IP-CIDR6,2406:840:981b::/48,no-resolve
 IP-CIDR6,2406:840:9865::/48,no-resolve
-IP-CIDR6,2406:840:9963::/48,no-resolve
 IP-CIDR6,2406:840:9965::/48,no-resolve
 IP-CIDR6,2406:840:996d::/48,no-resolve
 IP-CIDR6,2406:840:9976::/48,no-resolve
